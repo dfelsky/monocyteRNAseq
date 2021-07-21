@@ -1,4 +1,4 @@
-### generate normalized monocyte gene expression data for WGCNA
+### generate normalized monocyte gene expression data
 library(limma)
 library(edgeR)
 library(SummarizedExperiment)
@@ -7,9 +7,9 @@ library(cowplot)
 library(ggstatsplot)
 library(stringr)
 
-source("/Users/dfelsky/Documents/data/ROSMAP_RNAseq/dlpfc/from_CUMC_server_Nov112020/qualityControl/technicalConfounders/ggcorrplot.R")
-source("/Users/dfelsky/Documents/data/ROSMAP_RNAseq/dlpfc/from_CUMC_server_Nov112020/values/scripts/readBatches.R")
-source("/Users/dfelsky/Documents/data/ROSMAP_RNAseq/dlpfc/from_CUMC_server_Nov112020/qualityControl/technicalConfounders/identifyCovariates.R")
+### read in custom functions (Klein)
+source("code/ggcorrplot.R")
+source("code/identifyCovariates.R")
 
 ### ROSMAP phenotype data
 ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
@@ -19,21 +19,21 @@ mp <- read.csv("input/b123_pheno.txt",sep="\t",header=T,colClasses = c(projid="c
 mp$projid <- str_pad(mp$projid, width=8, side="left", pad="0")
 
 ### load raw count and QC metric data
-b1g <- read.table("input/raw/batch1/genes_expectedCounts.txt",
+b1g <- read.table("input/raw/mono_batch1/genes_expectedCounts.txt",
                   row.names = "gene_ID",
                   header=T, 
                   sep="",
                   check.names = F)
 
-b1m <- read.table("input/raw/batch1/qualityMetrics.csv", check.names = F, sep="", row.names = "Sample", header=T,colClasses=c("Sample"="character"))
+b1m <- read.table("input/raw/mono_batch1/qualityMetrics.csv", check.names = F, sep="", row.names = "Sample", header=T,colClasses=c("Sample"="character"))
 
-b2g <- read.table("input/raw/batch2/rsem_genes_raw/genes_expectedCounts.txt", 
+b2g <- read.table("input/raw/mono_batch2/rsem_genes_raw/genes_expectedCounts.txt", 
                   row.names = "gene_ID", 
                   header=T, 
                   sep=" ", 
                   check.names = F)
 
-b2m <- read.table("input/raw/batch2/qualityMetrics.csv", check.names = F, sep="", row.names = "Sample", header=T,colClasses=c("Sample"="character"))
+b2m <- read.table("input/raw/mono_batch2/qualityMetrics.csv", check.names = F, sep="", row.names = "Sample", header=T,colClasses=c("Sample"="character"))
 
 
 ### Merge batches and create batch index

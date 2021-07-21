@@ -51,40 +51,7 @@ quantile(mono_TOM,seq(0.95,1,by=0.001))
 
 
 ############
-library(igraph)
 
-mono_TOM <- readRDS("mono/TOM_power12_withoutsuboutliers_withgenetreeoutliers.rds")
-colnames(mono_TOM) <- colnames(dat_mono)
-rownames(mono_TOM) <- colnames(dat_mono)
-adj <- mono_TOM
-adj[adj > 0.08] = 1
-adj[adj != 1] = 0
-g <- graph.adjacency(adj,mode="undirected",weighted=TRUE,diag=FALSE)
-g <- simplify(g,remove.multiple=TRUE,remove.loops=TRUE) 
-
-#E(g)[which(E(g)$weight<0)]$color <- "darkblue"
-#E(g)[which(E(g)$weight>0)]$color <- "darkred"
-
-#E(g)$weight <- abs(E(g)$weight)
-
-V(g)$color <- net_mono$colors
-# remove unconnected nodes
-g <- delete.vertices(g, degree(g)==0)
-g <- delete.vertices(g, V(g)$color=="grey")
-# Amplify or decrease the width of the edges
-# edgeweights <- E(g)$weight * 2.0
-
-# Convert the graph adjacency object into a minimum spanning tree based on Prim's algorithm
-#mst <- mst(g, algorithm="prim")
-
-# Plot the tree object
-plot(
-  g,
-  layout=layout.fruchterman.reingold,
-  edge.curved=TRUE,
-  asp=FALSE,
-  edge.width=0.1,
-  edge.arrow.mode=0,vertex.label=NA,vertex.size=3)
 
 
 

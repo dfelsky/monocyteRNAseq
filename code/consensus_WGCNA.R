@@ -7,8 +7,7 @@ library(cowplot)
 library(gplots)
 
 # set working directory
-setwd("/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/WGCNA/consensus")
-load("/Users/dfelsky/Documents/data/all_genes_ensembl.RData")
+load("input/all_genes_ensembl.RData")
 
 dlpfc_datExpr <- readRDS("../dlpfc/input_adjustedforcells_datExpr.rds")
 colnames(dlpfc_datExpr) <- all_genes$ensembl_gene_id[match(colnames(dlpfc_datExpr),all_genes$external_gene_name)]
@@ -34,7 +33,7 @@ cnet <- blockwiseConsensusModules(multiExpr,
                           saveTOMs = TRUE, 
                           verbose = 5)
 
-saveRDS(cnet, file="cnet.rds")
+saveRDS(cnet, file="output/WGCNA/cnet.rds")
 
 
 

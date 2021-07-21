@@ -8,11 +8,8 @@ library(gplots)
 library(ggdendro)
 ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
 
-# set working directory
-setwd("/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/WGCNA/mono/run2")
-
 # read in starting dataset
-mono.resid <- readRDS("/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/normalization/monocytes_techandagesex_residuals.rds")
+mono.resid <- readRDS("input/monocytes_techandagesex_residuals.rds")
 
 # cluster subjects and plot dendrogram prior to removal
 datExpr <- t(mono.resid)
@@ -30,12 +27,12 @@ sampleTree2 <- flashClust(dist(datExpr),method = "average")
 dend2 <- ggdendrogram(sampleTree2)+
   labs(title=paste0("n=",nrow(datExpr)," subjects, afterpruning"))
 
-pdf(file="subjectDendrograms.pdf",width=12,height=6)
+pdf(file="output/WGCNA/mono/subjectDendrograms.pdf",width=12,height=6)
 print(plot_grid(dend1,dend2,ncol=2,labels = c("A","B")))
 dev.off()
 
 # save input dataset for WGCNA
-saveRDS(datExpr,file="input_datExpr.rds")
+saveRDS(datExpr,file="output/WGCNA/mono/input_datExpr.rds")
 
 # determine optimal power visually - here set at 11
 powers = c(1:30)
@@ -61,7 +58,7 @@ p2 <- ggplot(data=sft$fitIndices,aes(y=mean.k.,x=Power))+
   labs(y="Mean connectivity")+
   theme_minimal()
 
-pdf(file="softPower_study.pdf",width = 12,height=6)
+pdf(file="output/WGCNA/mono/softPower_study.pdf",width = 12,height=6)
 print(plot_grid(p1,p2,ncol=2,labels = c("A","B")))
 dev.off()
 
@@ -80,7 +77,7 @@ TOM = TOMsimilarity(adjacency,
 rownames(TOM) <- colnames(datExpr)
 colnames(TOM) <- colnames(datExpr)
 
-saveRDS(TOM,file="TOM_signed_power11.rds")
+saveRDS(TOM,file="output/WGCNA/mono/TOM_signed_power11.rds")
 
 # perform hierarchical clustering of TOM dissimilarity
 dissTOM = 1 - TOM
@@ -113,7 +110,7 @@ MEDiss = 1-cor(MEs)
 METree = flashClust(as.dist(MEDiss), method = "average")
 merge = mergeCloseModules(datExpr,
                           dynamicColors,
-                          cutHeight = 0.1,
+                          cutHeight = 0.15,
                           verbose = 3)
 mergedColors = merge$colors
 mergedMEs = merge$newMEs
@@ -144,7 +141,7 @@ print(ggplot(data=modlengths,aes(y=members,x=module))+
 dev.off()
 
 moduleColors = mergedColors
-names(moduleCOlors) <- colnames(datExpr)
+names(moduleColors) <- colnames(datExpr)
 colorOrder = c("grey", standardColors(100))
 moduleLabels = match(moduleColors, colorOrder)-1
 MEs = mergedMEs
