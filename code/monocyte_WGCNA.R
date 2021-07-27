@@ -62,37 +62,37 @@ pdf(file="output/WGCNA/mono/softPower_study.pdf",width = 12,height=6)
 print(plot_grid(p1,p2,ncol=2,labels = c("A","B")))
 dev.off()
 
-# calculate adjacency matrix
-adjacency= adjacency(datExpr,
-                     power = 11,
-                     type = "signed",
-                     distFnc = "bicor",
-                     distOptions = list(maxPOutliers=0.05))
+###############################################################################
+##############################
+##################### ONE STEP
+##############################
+datExpr <- readRDS("output/WGCNA/mono/input_datExpr.rds")
 
-# calculate TOM
-TOM = TOMsimilarity(adjacency,
-                    TOMType="signed",
-                    verbose = T)
+setwd("output/WGCNA/mono/")
+net2 <- blockwiseModules(datExpr = datExpr,
+                         power=11,
+                         TOMType = "signed",
+                         minModuleSize = 30,
+                         minKMEtoStay = 0.3,
+                         corType = "bicor",
+                         maxBlockSize = 20000,
+                         maxPOutliers =0.05,
+                         deepSplit = 3,
+                         detectCutHeight = 0.995,
+                         saveTOMs = T,
+                         saveTOMFileBase = "mono2_signed_signed_minKMEtoStay03",
+                         pamStage = T,
+                         pamRespectsDendro = T,
+                         networkType = "signed",
+                         verbose = 10)
+setwd("/Users/dfelsky/Documents/monocyteRNAseq")
 
-rownames(TOM) <- colnames(datExpr)
-colnames(TOM) <- colnames(datExpr)
+table(net1$colors)
+plotDendroAndColors(net2$dendrograms[[1]],colors = net2$colors)
 
-saveRDS(TOM,file="output/WGCNA/mono/TOM_signed_power11.rds")
+saveRDS(net2,"output/WGCNA/mono/net.rds")
 
-# perform hierarchical clustering of TOM dissimilarity
-dissTOM = 1 - TOM
-geneTree = flashClust(as.dist(dissTOM), method = "average")
-
-# define modules
-dynamicMods = cutreeDynamic(dendro = geneTree,
-                            distM = dissTOM,
-                            deepSplit = 3, ### this is changed from 2-3 for run2
-                            pamRespectsDendro = FALSE,
-                            minClusterSize = 20)
-
-dynamicColors = labels2colors(dynamicMods)
-
-pdf(file="geneDendrogram_unmerged.pdf", width = 12, height = 9)
+#pdf(file="geneDendrogram_unmerged.pdf", width = 12, height = 9)
 plotDendroAndColors(geneTree,
                     dynamicColors,
                     "Dynamic Tree Cut",
@@ -101,52 +101,16 @@ plotDendroAndColors(geneTree,
                     addGuide = TRUE,
                     guideHang = 0.05,
                     main = "Gene dendrogram and module colors")
-dev.off()
+#dev.off()
 
-# calculate eigengenes and cluster
-MEList = moduleEigengenes(datExpr, colors = dynamicColors)
-MEs = MEList$eigengenes
-MEDiss = 1-cor(MEs)
-METree = flashClust(as.dist(MEDiss), method = "average")
-merge = mergeCloseModules(datExpr,
-                          dynamicColors,
-                          cutHeight = 0.15,
-                          verbose = 3)
-mergedColors = merge$colors
-mergedMEs = merge$newMEs
-
-pdf(file="geneDendrogram_merged.pdf", width = 12, height = 9)
-plotDendroAndColors(geneTree,
-                    cbind(dynamicColors, mergedColors),
-                    c("Dynamic Tree Cut", "Merged dynamic"),
-                    dendroLabels = FALSE,
-                    hang = 0.02,
-                    addGuide = TRUE,
-                    guideHang = 0.05)
-dev.off()
-
-modlengths <- as.data.frame(do.call(rbind,as.list(table(mergedColors))))
-modlengths$module <- rownames(modlengths)
-names(modlengths)[1] <- "members"
-modlengths$hex <- col2hex(modlengths$module)
-modlengths$module <- factor(modlengths$module,levels=modlengths$module[order(modlengths$members)])
-
-pdf(file="genesPerModule_barPlot.pdf",width = 12,height=6)
+#pdf(file="output/WGCNA/mono/genesPerModule_barPlot.pdf",width = 12,height=6)
 print(ggplot(data=modlengths,aes(y=members,x=module))+
         geom_bar(aes(fill=module),stat="identity",show.legend = F)+
         scale_fill_manual(values=modlengths$hex[order(modlengths$members)])+
         theme_minimal()+
         labs(y="# of genes",x="Module",title = "Number of genes per module")+
         theme(axis.text.x=element_text(angle = -45, hjust = 0)))
-dev.off()
+#dev.off()
 
-moduleColors = mergedColors
-names(moduleColors) <- colnames(datExpr)
-colorOrder = c("grey", standardColors(100))
-moduleLabels = match(moduleColors, colorOrder)-1
-MEs = mergedMEs
-saveRDS(list(MEs=MEs,
-             labels=moduleLabels,
-             colors=moduleColors,
-             geneTree=geneTree),
-             file = "net.rds")
+
+

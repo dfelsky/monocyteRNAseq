@@ -41,3 +41,6 @@ ggplot(n, aes(x = x, y = y, xend = xend, yend = yend)) +
   scale_size_continuous(range=c(0.1,3))+
   scale_colour_manual(values=colpal)+
   theme_blank()
+
+
+saveRDS(list(n=n,colpal=colpal),file="output/WGCNA/mono/networkplot_objects.rds")
