@@ -29,8 +29,8 @@ getCorrelations <- function(data, x, y) {
         
         # If both are numerical: Pearson correlation
       } else if (is.numeric(data[, x[i]]) & is.numeric(data[, y[j]])) {
-        corMat[i, j] <- cor(data[, x[i]], data[, y[j]])
-        pMat[i, j] <- cor.test(data[, x[i]], data[, y[j]])$p.value
+        corMat[i, j] <- cor(data[, x[i]], data[, y[j]], use="pairwise.complete.obs")
+        pMat[i, j] <- cor.test(data[, x[i]], data[, y[j]], use="pairwise.complete.obs")$p.value
         
         # One is numeric (x), one is factor (y): One-way anova
       } else if (is.numeric(data[, x[i]]) & is.factor(data[, y[j]])) {

@@ -23,14 +23,13 @@ cnet <- blockwiseConsensusModules(multiExpr,
                           minModuleSize = 30, 
                           deepSplit = 2,
                           networkType = "signed",
-                          pamRespectsDendro = FALSE,
                           mergeCutHeight = 0.25, 
                           numericLabels = TRUE,
                           minKMEtoStay = 0.2,
                           corType = "bicor",
                           maxBlockSize = 20000,
                           maxPOutliers =0.05,
-                          saveTOMs = TRUE, 
+                          saveTOMs = TRUE,
                           verbose = 5)
 
 saveRDS(cnet, file="output/WGCNA/cnet.rds")

@@ -19,7 +19,7 @@ all_genes$mid <- all_genes$start_position + abs((all_genes$end_position - all_ge
 ##################################
 #### set parameters for TWAS  ####
 ##################################
-outcome.category.list <- c("pathology","cognition")
+outcome.category.list <- c("pathology_blood","cognition_blood","pathology","cognition")
 tissue.list <- c("monocyte","dlpfc")
 
 techvars.mono <- c("batch","PCT_USABLE_BASES","PERCENT_DUPLICATION","MEDIAN_3PRIME_BIAS","study","PCT_PF_READS_ALIGNED","ESTIMATED_LIBRARY_SIZE")
@@ -27,6 +27,8 @@ techvars.dlpfc <- c("batch", "MEDIAN_CV_COVERAGE", "PCT_RIBOSOMAL_BASES", "PCT_C
 
 covars.mono.pathology <- c("msex","age_death","pmi","age_draw")
 covars.mono.cognition <- c("msex","age_draw","educ")
+covars.mono.pathology.blood <- c("msex","age_death","pmi","age_draw","hemoglbn_at_draw","mchc_at_draw","mcv_at_draw","platelet_at_draw","wbc_at_draw","fasting.f","hemotologic_rx_at_draw")
+covars.mono.cognition.blood <- c("msex","age_draw","educ","hemoglbn_at_draw","mchc_at_draw","mcv_at_draw","platelet_at_draw","wbc_at_draw","fasting.f","hemotologic_rx_at_draw")
 
 covars.dlpfc.pathology <- c("msex","pmi","age_death")
 covars.dlpfc.cognition <- c("educ","msex","age_death","age_at_visit_at_lastvisit")
@@ -69,6 +71,7 @@ for (tissue in tissue.list) {
       } else if (outcome.category=="cognition") {
         indepvec <- indepvec.dlpfc.cognition
         covars <- covars.dlpfc.cognition
+      } else { next
       } } else if (tissue=="monocyte") {
         dge_filtered <- readRDS("input/monocytes_filtered_only.rds")
         techvars <- techvars.mono
@@ -84,6 +87,12 @@ for (tissue in tissue.list) {
         } else if (outcome.category=="cognition") {
           indepvec <- indepvec.mono.cognition
           covars <- covars.mono.cognition
+        } else if (outcome.category=="pathology_blood") {
+          indepvec <- indepvec.pathology
+          covars <- covars.mono.pathology.blood
+        } else if (outcome.category=="cognition_blood") {
+          indepvec <- indepvec.mono.cognition
+          covars <- covars.mono.cognition.blood
         } }
     
     # set parameters for plotting individual effects
@@ -121,6 +130,11 @@ for (tissue in tissue.list) {
       
       # remove levels of batch that have been brought to zero
       dge_fortwas$samples$batch <- as.factor(as.character(dge_fortwas$samples$batch))
+      
+      if (outcome.category %in% c("pathology_blood","cognition_blood")) {
+        dge_fortwas$samples$fasting.f <- as.factor(as.character(dge_fortwas$samples$fasting.f))
+        dge_fortwas$samples$hemotologic_rx_at_draw <- as.factor(as.character(dge_fortwas$samples$hemotologic_rx_at_draw))
+      }
       
       if (cont.index[index]==T) {
         dge_fortwas$samples[,indep] <- as.numeric(dge_fortwas$samples[,indep]) 

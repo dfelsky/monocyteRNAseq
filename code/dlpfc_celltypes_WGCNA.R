@@ -5,34 +5,24 @@ library(limma)
 library(flashClust)
 library(cowplot)
 library(gplots)
+library(BRETIGEA)
 library(ggdendro)
-ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
 
-# read in starting dataset
-mono.resid <- readRDS("input/monocytes_techandagesex_residuals.rds")
-
-# cluster subjects and plot dendrogram prior to removal
-datExpr <- t(mono.resid)
-sampleTree1 <- flashClust(dist(datExpr),method = "average")
-dend1 <- ggdendrogram(sampleTree1)+
-  labs(title=paste0("n=",nrow(datExpr)," subjects, prior to pruning"))
-
-# remove outliers identified by hierarchical clustering
-manual_remove_subjects <- c("00246264","35072859","91804757","21135680","69866926","50303145")
-mono <- mono.resid[,which(colnames(mono.resid) %nin% manual_remove_subjects)]
-datExpr <- t(mono)
-
-# cluster subjects and plot dendrogram after removal
-sampleTree2 <- flashClust(dist(datExpr),method = "average")
-dend2 <- ggdendrogram(sampleTree2)+
-  labs(title=paste0("n=",nrow(datExpr)," subjects, afterpruning"))
-
-pdf(file="output/WGCNA/mono/subjectDendrograms.pdf",width=12,height=6)
-print(plot_grid(dend1,dend2,ncol=2,labels = c("A","B")))
-dev.off()
+load("input/all_genes_ensembl.RData")
 
 # save input dataset for WGCNA
-saveRDS(datExpr,file="output/WGCNA/mono/input_datExpr.rds")
+preadjust <- readRDS("output/WGCNA/dlpfc/input_datExpr.rds")
+
+preadjust <- t(preadjust)
+genesymbols <- all_genes$external_gene_name[match(rownames(preadjust),all_genes$ensembl_gene_id)]
+rownames(preadjust) <- genesymbols
+preadjust <- preadjust[!is.na(genesymbols),]
+postadjust <- adjustBrainCells(preadjust,species = "human")
+
+datExpr <- t(postadjust$expression)
+
+saveRDS(datExpr,file="output/WGCNA/dlpfc/input_adjustedforcells_datExpr.rds")
+saveRDS(postadjust$SVPs,file="output/WGCNA/dlpfc/dlpfc_estimatedBrainCells.rds")
 
 # determine optimal power visually - here set at 11
 powers = c(1:30)
@@ -48,29 +38,29 @@ p1 <- ggplot(data=sft$fitIndices,aes(y=SFT.R.sq,x=Power))+
   geom_hline(yintercept=c(0.85,0.9),lty=2,col="red")+
   geom_line(size=1.5,alpha = 0.2, stat = "smooth", method = "loess",col="blue")+
   geom_text(aes(label=Power),size=3)+
-  geom_vline(xintercept=11,lty=1,col="darkgreen")+
+  geom_vline(xintercept=16,lty=1,col="darkgreen")+
   labs(y="Signed R2")+
   theme_minimal()
 p2 <- ggplot(data=sft$fitIndices,aes(y=mean.k.,x=Power))+
   geom_line(size=1.5,alpha = 0.2, stat = "smooth", method = "loess",col="blue")+
   geom_text(aes(label=Power),size=3)+
-  geom_vline(xintercept=11,lty=1,col="darkgreen")+
+  geom_vline(xintercept=16,lty=1,col="darkgreen")+
   labs(y="Mean connectivity")+
   theme_minimal()
 
-pdf(file="output/WGCNA/mono/softPower_study.pdf",width = 12,height=6)
+pdf(file="output/WGCNA/dlpfc/softPower_study_celltypes.pdf",width = 12,height=6)
 print(plot_grid(p1,p2,ncol=2,labels = c("A","B")))
 dev.off()
 
 ###############################################################################
 ##############################
-##################### ONE STEP
+##################### ONE STEP 
 ##############################
-datExpr <- readRDS("output/WGCNA/mono/input_datExpr.rds")
+datExpr <- readRDS("output/WGCNA/dlpfc/input_adjustedforcells_datExpr.rds")
 
-setwd("output/WGCNA/mono/")
+setwd("output/WGCNA/dlpfc/")
 net <- blockwiseModules(datExpr = datExpr,
-                         power=11,
+                         power=12,
                          TOMType = "signed",
                          minModuleSize = 30,
                          minKMEtoStay = 0.3,
@@ -80,17 +70,17 @@ net <- blockwiseModules(datExpr = datExpr,
                          deepSplit = 3,
                          detectCutHeight = 0.995,
                          saveTOMs = T,
-                         saveTOMFileBase = "mono2_signed_signed_minKMEtoStay03_noPAM",
+                         saveTOMFileBase = "dlpfc_signed_signed_minKMEtoStay03_noPAM_celltypes",
                          pamStage = F,
                          pamRespectsDendro = F,
                          networkType = "signed",
                          verbose = 10)
 setwd("/Users/dfelsky/Documents/monocyteRNAseq")
 
-saveRDS(net,"output/WGCNA/mono/net_noPAM.rds")
-net <- readRDS("output/WGCNA/mono/net_noPAM.rds")
+saveRDS(net,"output/WGCNA/dlpfc/net_noPAM_celltypes.rds")
+net <- readRDS("output/WGCNA/dlpfc/net_noPAM_celltypes.rds")
 
-pdf(file="output/WGCNA/mono/geneDendrogram.pdf", width = 12, height = 9)
+pdf(file="output/WGCNA/dlpfc/geneDendrogram_celltypes.pdf", width = 12, height = 9)
 plotDendroAndColors(net$dendrograms[[1]],
                     net$colors,
                     "Dynamic Tree Cut",
@@ -107,7 +97,7 @@ modlengths$hex <- col2hex(modlengths$module)
 modlengths$module <- factor(modlengths$module,levels=modlengths$module[order(modlengths$n)])
 modlengths <- subset(modlengths, module %nin% "grey")
 
-pdf(file="output/WGCNA/mono/genesPerModule_barPlot.pdf",width = 12,height=6)
+pdf(file="output/WGCNA/dlpfc/genesPerModule_barPlot_celltypes.pdf",width = 12,height=6)
 print(ggplot(data=modlengths,aes(y=n,x=module))+
         geom_bar(aes(fill=module),stat="identity",show.legend = F)+
         scale_fill_manual(values=modlengths$hex[order(modlengths$n)])+

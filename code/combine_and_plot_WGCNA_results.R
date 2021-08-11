@@ -1,133 +1,140 @@
 ### analyze WGCNA output
-### assess which set of results has most enrichments and use that in downstream analyses:
+library(WGCNA)
 
-enrichfiles <- list.files(pattern = "module_enrichment_results",recursive = T)
+load("/Users/dfelsky/Documents/data/all_genes_ensembl.RData")
 
-allenrich <- lapply(enrichfiles, function(x) {
-  y <- readRDS(x)
-  y <- subset(y, adj.P.Val < 0.05)
-  return(list(file=x,
-           uniquemodswithsig=length(unique(y$module)),
-           totalenrich=nrow(y),
-           pdist=quantile(y$adj.P.Val,seq(0,0.1,0.01))
-           ))
-})
+### overlap
+dat_mono <- readRDS("output/WGCNA/mono/input_datExpr.rds")
+colnames(dat_mono) <- all_genes$external_gene_name[match(colnames(dat_mono),all_genes$ensembl_gene_id)]
+dat_mono <- dat_mono[,which(is.na(colnames(dat_mono))==F)]
+dat_dlpfc <- readRDS("output/WGCNA/dlpfc/input_adjustedforcells_datExpr.rds")
 
-aer <- do.call(rbind,allenrich)
+net_mono <- readRDS("output/WGCNA/mono/net_noPAM.rds")
+names(net_mono$colors) <- all_genes$external_gene_name[match(names(net_mono$colors),all_genes$ensembl_gene_id)]
+net_mono$colors <- net_mono$colors[which(is.na(names(net_mono$colors))==F)]
+net_dlpfc <- readRDS("output/WGCNA/dlpfc/net_noPAM_celltypes.rds")
 
+#### get common genes:
+commongenes <- intersect(colnames(dat_mono),colnames(dat_dlpfc))
+dat1common <- dat_mono[,commongenes]
+dat2common <- dat_dlpfc[,commongenes]
 
+colorh1 <- net_mono$colors[commongenes]
+colorh2 <- net_dlpfc$colors[commongenes]
 
-
-
-setwd("/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/WGCNA/")
-
-datalist_mono <- readRDS("mono/datalist.rds")
-dat_mono <- t(datalist_mono$all)
-datalist_dlpfc <- readRDS("dlpfc/datalist.rds")
-dat_dlpfc <- t(datalist_dlpfc$all)
-
-net_mono <- readRDS("mono/net_all_signed_DeepSplit3_power12.rds")
-net_dlpfc <- readRDS("dlpfc/net_all_signed_DeepSplit3_power20.rds")
+ME1common <- net_mono$MEs[,which(gsub("ME","",colnames(net_mono$MEs)) %in% unique(colorh1))]
+ME2common <- net_dlpfc$MEs[,which(gsub("ME","",colnames(net_dlpfc$MEs)) %in% unique(colorh2))]
 
 #### module overlaps
-mod_overlap <- overlapTableUsingKME(dat1 = dat_mono,
-                                    dat2 = dat_dlpfc,
-                                    MEs1 = net_mono$MEs,
-                                    MEs2 = net_dlpfc$MEs,
+mod_overlap <- overlapTableUsingKME(dat1 = dat1common,
+                                    dat2 = dat2common,
+                                    MEs1 = ME1common,
+                                    MEs2 = ME2common,
                                     name1 = "mono",
                                     name2 = "dlpfc",
-                                    colorh1 = net_mono$colors,
-                                    colorh2 = net_dlpfc$colors)
+                                    colorh1 = colorh1,
+                                    colorh2 = colorh2,
+                                    omitGrey = TRUE)
 
 overlapYN <- apply(mod_overlap$PvaluesHypergeo,2,function(x) {
   ifelse(x < 0.0005,1,0)
 })
 
-library(corrplot)
+mod_overlap2 <- overlapTable(colorh1,colorh2)
 
-corrplot(overlapYN,is.corr = F,method="color")
-heatmap(overlapYN)
-quantile(mono_TOM,seq(0.95,1,by=0.001))
+plotdat1 <- melt(overlapYN)
+names(plotdat1)[3] <- "sig"
+plotdat2 <- melt(mod_overlap$PvaluesHypergeo)
+names(plotdat2)[3] <- "pvalue"
+plotdat3 <- melt(mod_overlap2$countTable)
+plotdat3$Var1 <- paste0("mono_",plotdat3$Var1)
+plotdat3$Var2 <- paste0("dlpfc_",plotdat3$Var2)
+names(plotdat3)[3] <- "n"
 
+plotdat <- merge(plotdat1,plotdat2)
+plotdat <- merge(plotdat,plotdat3)
+
+plotdat_sub <- subset(plotdat, Var1!="mono_grey" & Var2!="dlpfc_grey")
+
+ggplot(data=plotdat_sub,aes(y=Var2,x=Var1,fill=-log10(pvalue)))+
+  geom_tile()+
+  scale_fill_gradient(low = "white",high="red")+
+  geom_text(aes(label=n),col="black",size=3)+
+  theme_minimal()+
+  theme(axis.text.x=element_text(angle = -45, hjust = 0))
 
 ############
-
-
-
-
 ###################################################
-##### module - trait associations
+##### module - trait associations, monocytes
+library(broom)
 
-allnetfiles <- list.files(pattern = "net_")
+ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
+net <- readRDS("output/WGCNA/mono/net_noPAM.rds")
 
-for (netfile in allnetfiles) {
-  net <- readRDS(netfile)
-  dset <- strsplit(netfile,"_")[[1]][2]
-  is.signed <- strsplit(netfile,"_")[[1]][3]
-  deepsplit <- gsub(strsplit(netfile,"_")[[1]][4],pattern="DeepSplit",replacement="")
-  
-  ### trait-ME associations
-  ME <- net$MEs
-  ME$projid <- rownames(net$MEs)
-  
-  ### vilas cell types
-  library(stringr)
-  vcells <- read.csv("/Users/dfelsky/Documents/data/vilas_deconv_2020/deconv_estimates_20200723.csv",as.is=T,header = T)
-  rownames(vcells) <- vcells$X
-  vcells$X <- NULL
-  vcells <- as.data.frame(t(vcells))
-  rownames(vcells) <- as.character(gsub(rownames(vcells),pattern="X",replacement=""))
-  rownames(vcells) <- str_pad(rownames(vcells),8,pad="0",side="left")
-  vcells$projid <- rownames(vcells)
-  
-  md1 <- merge(ME,ROSmaster,by="projid")
-  md <- merge(md1,vcells,by="projid")
-  #md <- merge(md,v$targets,by="projid",all.x=T)
-  
-  library(broom)
-  egenelist <- names(net$MEs) ### might want to subset for example to top 20
-  cont.phenos <- c("plaq_n_sqrt","plaq_d_sqrt","amyloid_sqrt","tangles_sqrt","nft_sqrt","arteriol_scler","caa_4gp","cvda_4gp2","dlbdx","hspath_any","tdp_stage4","vm3123","pput3123","it3123","mf3123") #names(vcells)[-48] #
-  bin.phenos <- c("smoking","ad_reagan","ci_num2_gct","ci_num2_mct") # binary phenotypes
-  covars <- c("age_death","pmi","msex")
-  
-  
-  index <- 1
-  pvalues <- NULL
-  bvalues <- NULL
-  nvalues <- NULL
-  phenovalues <- NULL
-  egenevalues <- NULL
-  for (pheno in cont.phenos) {
-    for (egene in egenelist) {
-      form <- formula(paste(pheno,"~",egene,"+",paste0(covars,collapse = " + ")))
-      mod <- lm(data=md, form)
-      pvalues[index] <- tidy(mod)$p.value[2]
-      bvalues[index] <- coef(mod)[2]
-      nvalues[index] <- dim(mod$model)[1]
-      egenevalues[index] <- egene
-      phenovalues[index] <- pheno
-      index <- index + 1
-    }
+### trait-ME associations
+ME <- net$MEs
+ME$projid <- rownames(net$MEs)
+md <- merge(ME,ROSmaster,by="projid")
+
+egenelist <- names(net$MEs)[which(names(net$MEs) %nin% "MEgrey")] 
+cont.phenos <- c("plaq_n_sqrt","plaq_d_sqrt","amyloid_sqrt","tangles_sqrt","nft_sqrt","arteriol_scler","caa_4gp","cvda_4gp2","dlbdx","tdp_stage4","vm3123","pput3123","it3123","mf3123") 
+covars <- c("age_death","pmi","msex")
+
+index <- 1
+pvalues <- NULL
+bvalues <- NULL
+nvalues <- NULL
+phenovalues <- NULL
+egenevalues <- NULL
+for (pheno in cont.phenos) {
+  for (egene in egenelist) {
+    form <- formula(paste(pheno,"~",egene,"+",paste0(covars,collapse = " + ")))
+    mod <- lm(data=md, form)
+    pvalues[index] <- tidy(mod)$p.value[2]
+    bvalues[index] <- coef(mod)[2]
+    nvalues[index] <- dim(mod$model)[1]
+    egenevalues[index] <- egene
+    phenovalues[index] <- pheno
+    index <- index + 1
   }
-  
-  results <- data.frame(pheno=phenovalues,
-                        snp=egenevalues,
-                        b=bvalues,
-                        p=pvalues,
-                        n=nvalues)
-  
-  bonfT <- 0.05/nrow(results)
-  
-  pdf(file=paste0("ME_pathology_associations_",dset,"_",is.signed,"_deepSplit",deepsplit,".pdf"))
-  print(ggplot(data=results, aes(x=pheno,y=-log10(p)*sign(b),group=snp))+
-          geom_bar(stat="identity",position="dodge")+
-          geom_hline(yintercept = c(-log10(bonfT),log10(bonfT)),col="red",lty=2)+ 
-          geom_hline(yintercept = c(-log10(0.05),log10(0.05)),col="blue",lty=3)+ 
-          geom_text(data=subset(results,p<0.05),aes(label=snp))+
-          theme_minimal()+
-          theme(axis.text.x=element_text(angle = -45, hjust = 0)))
-  dev.off()
-  
 }
+
+results <- data.frame(pheno=phenovalues,
+                      egene=egenevalues,
+                      b=bvalues,
+                      p=pvalues,
+                      n=nvalues,
+                      signedp=-log10(pvalues)*sign(bvalues))
+
+bonfT <- 0.05/nrow(results)
+
+library(ggdendro)
+library(reshape2)
+
+rescast <- dcast(results,pheno ~ egene,value.var = "signedp")
+rownames(rescast) <- rescast$pheno
+rescast$pheno <- NULL
+rescast <- as.matrix(rescast)
+
+phenodend <- as.dendrogram(hclust(dist(rescast)))
+pheno.order <- order.dendrogram(phenodend)
+
+egenedend <- as.dendrogram(hclust(dist(t(rescast))))
+egene.order <- order.dendrogram(egenedend)
+
+results$pheno.f <- factor(x = results$pheno,
+                               levels = rownames(rescast)[pheno.order], 
+                               ordered = TRUE)
+results$egene.f <- factor(x = results$egene,
+                               levels = colnames(rescast)[egene.order], 
+                               ordered = TRUE)
+
+ggplot(data=results,aes(y=pheno.f,x=egene.f,fill=-log10(p)*sign(b)))+
+  geom_tile()+
+  scale_fill_gradient2()+
+  #geom_text(aes(label=n),col="black",size=3)+
+  theme_minimal()+
+  theme(axis.text.x=element_text(angle = -45, hjust = 0))
+  
 
 

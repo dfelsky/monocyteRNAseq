@@ -12,70 +12,25 @@ library(dplyr)
 library(stringr)
 library(BRETIGEA)
 
-# load ROSMAP phenotype data and gene symbols reference, and consolidate over old and new updates
-source("/Users/dfelsky/Documents/scripts/make_ROSmaster_feb12019.R")
-load("/Users/dfelsky/Documents/data/all_genes_ensembl.RData")
+# load ROSMAP phenotype data and gene symbols reference
+ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
+load("input/all_genes_ensembl.RData")
 all_genes$mid <- all_genes$start_position + abs((all_genes$end_position - all_genes$start_position)/2)
-
-# format and transform key outcome variables
-ROSmaster <- within(ROSmaster,{
-  plaq_n_sqrt <- sqrt(plaq_n)
-  plaq_d_sqrt <- sqrt(plaq_d)
-  amyloid_sqrt <- sqrt(amyloid)
-  tangles_sqrt <- sqrt(tangles)
-  nft_sqrt <- sqrt(nft)
-  
-  tdp_stage4 <- as.numeric(tdp_stage4)
-  dlbdx <- as.numeric(dlbdx)
-  cvda_4gp2 <- as.numeric(cvda_4gp2)
-  caa_4gp <- as.numeric(caa_4gp)
-  age_death <- as.numeric(age_death)
-  pmi <- as.numeric(pmi)
-  
-  ci_num2_gct <- as.factor(ci_num2_gct)
-  ci_num2_mct <- as.factor(ci_num2_mct)
-  hspath_any <- as.factor(hspath_any)
-  parkdx <- as.factor(parkdx)
-  pathoAD <- as.factor(pathoAD)
-})
-
-
-roslong <- read.csv("/Users/dfelsky/Documents/data/ROSMAP_phenotype_data/update_10162020/dataset_978_long_10-13-2020.csv",colClasses = c(projid="character"))
-
-# add cognitive variables at last visit
-longlist2 <- lapply(unique(roslong$projid), function(x){
-  pl <- roslong[which(roslong$projid==x & is.na(roslong$cogn_global)==F),]
-  maxindex <- which.max(pl$fu_year)
-  pl[maxindex,]
-})
-
-newdat2 <- do.call(rbind,longlist2)
-newdatsub2 <- newdat2[,c(1,42:48,63)]
-names(newdatsub2)[-1] <- paste0(names(newdatsub2)[-1],"_at_lastvisit")
-
-ROSmaster <- merge(ROSmaster,newdatsub2,by="projid",all.x=T)
 
 ##################################
 #### set parameters for TWAS  ####
 ##################################
-outdir <- "/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/TWAS/Jan2021/newcog/"
-setwd(outdir)
-
 outcome.category.list <- c("cognition")
-tissue.list <- c("dlpfc")
+tissue.list <- "dlpfc"
 
-techvars.mono <- c("batch","PCT_USABLE_BASES","PERCENT_DUPLICATION","MEDIAN_3PRIME_BIAS","study","PCT_PF_READS_ALIGNED","ESTIMATED_LIBRARY_SIZE")
 techvars.dlpfc <- c("batch", "MEDIAN_CV_COVERAGE", "PCT_RIBOSOMAL_BASES", "PCT_CODING_BASES", "PCT_UTR_BASES", "LOG_ESTIMATED_LIBRARY_SIZE", "LOG_PF_READS_ALIGNED", "MEDIAN_5PRIME_TO_3PRIME_BIAS", "PCT_PF_READS_ALIGNED", "study", "PERCENT_DUPLICATION", "MEDIAN_3PRIME_BIAS", "PCT_INTERGENIC_BASES")
-
-covars.mono.pathology <- c("msex","age_death","pmi","age_draw")
-covars.mono.cognition <- c("msex","age_draw","educ")
 
 covars.dlpfc.pathology <- c("msex","pmi","age_death")
 covars.dlpfc.cognition <- c("educ","msex","age_death","age_at_visit_at_lastvisit")
 
 indepvec.pathology <- c("plaq_n_sqrt","plaq_d_sqrt","amyloid_sqrt","tangles_sqrt","nft_sqrt","ci_num2_gct","ci_num2_mct","arteriol_scler","caa_4gp","cvda_4gp2","dlbdx","hspath_any","tdp_stage4","parkdx","pathoAD","vm3123","pput3123","it3123","mf3123") 
 
-indepvec.cognition <- names(newdatsub2)[-c(1,9)] #c("cogn_global_random_slope","cogn_ep_random_slope","cogn_po_random_slope","cogn_ps_random_slope","cogn_se_random_slope","cogn_wo_random_slope")
+indepvec.dlpfc.cognition <- grep("cogn|mmse30",grep("lastvisit",names(ROSmaster),value=T),value=T)
 
 maxnum.toplot <- 100
 
@@ -96,20 +51,20 @@ for (tissue in tissue.list) {
     # read in filtered data from normalize_mono_data.R or other script
     # specify technical variables, other covariates, and outcome variables
     if (tissue =="dlpfc") {
-      dge_filtered <- readRDS("/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/normalization/dlpfc_filtered_only.rds")
+      dge_filtered <- readRDS("input/dlpfc_filtered_only.rds")
       techvars <- techvars.dlpfc
       
       ### remove outlier subjects
       removesubs.dlpfc <- c("20634274","23690880","50103967","32697960","20886846","43596435","16322424","30544882","74522154","21246218","74284255","11390174","69924281","85578107","11475462","00402800","01797756","24141372")
       dge_filtered <- dge_filtered[,which(dge_filtered$samples$projid %nin% removesubs.dlpfc)]
   
-      saveRDS(dge_filtered,file="dlpfc_dge_filtered_used_celltypes.rds")
+      saveRDS(dge_filtered,file="output/dlpfc_dge_filtered_used_celltypes.rds")
       
       if(outcome.category=="pathology"){
         indepvec <- indepvec.pathology
         covars <- covars.dlpfc.pathology
       } else if (outcome.category=="cognition") {
-        indepvec <- indepvec.cognition
+        indepvec <- indepvec.dlpfc.cognition
         covars <- covars.dlpfc.cognition
       } } else if (tissue=="monocyte") {
         dge_filtered <- readRDS("/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/normalization/monocytes_filtered_only.rds")
@@ -229,8 +184,9 @@ for (tissue in tissue.list) {
     }
     
     print(paste("### saving summary statistics for:",outcome.category,"/",tissue))
-    saveRDS(ttlistdesign,file=paste0(outdir,"TWAS_designmatrices_",tissue,"_",outcome.category,"_celltypes.rds"))
-    saveRDS(ttlist,file=paste0(outdir,"TWAS_results_",tissue,"_",outcome.category,"_celltypes.rds"))
+    saveRDS(ttlistdesign,file=paste0("output/TWAS_designmatrices_",tissue,"_",outcome.category,"_celltypes.rds"))
+    saveRDS(ttlist,file=paste0("output/TWAS_results_",tissue,"_",outcome.category,"_celltypes.rds"))
+  
     
     #################################################
     ######### START OF MANHATTAN PLOTTING ###########
@@ -309,7 +265,7 @@ for (tissue in tissue.list) {
     
     # manhattan
     print(paste("### saving manhattan plots for:",outcome.category,"/",tissue))
-    pdf(paste0(outdir,"Manhattan_plot_",tissue,"_",outcome.category,"_celltypes.pdf"),width=14,height=9, onefile = T)
+    pdf(paste0("output/Manhattan_plot_",tissue,"_",outcome.category,"_celltypes.pdf"),width=14,height=9, onefile = T)
     for (a in seq(1,length(plotlist))) { print(plotlist[[a]]) }
     dev.off()
     
@@ -378,7 +334,7 @@ for (tissue in tissue.list) {
     }
     
     print(paste("### saving individual significant result plots for:",outcome.category,"/",tissue))
-    pdf(paste0(outdir,"Individual_effects_",tissue,"_",outcome.category,"_celltypes.pdf"),width=16,height=16, onefile = T)
+    pdf(paste0("output/Individual_effects_",tissue,"_",outcome.category,"_celltypes.pdf"),width=16,height=16, onefile = T)
     for (a in seq(1,length(datplotlist))) { print(datplotlist[[a]]) }
     dev.off()
   }

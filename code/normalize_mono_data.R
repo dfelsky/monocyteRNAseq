@@ -135,12 +135,17 @@ bp1 <- boxplot(allmeds,range = 3)
 distribution_outliers <- names(which(allmeds < max(bp1$out)))
 dge_filtered <- dge_filtered[,which(dge_filtered$samples$projid %nin% distribution_outliers)]
 
-saveRDS(dge_filtered,file="input/monocytes_filtered_only.rds")
+#saveRDS(dge_filtered,file="input/monocytes_filtered_only.rds")
 
 ### variable selection
+dge_filtered <- readRDS("input/monocytes_filtered_only.rds")
 dge_filtered <- calcNormFactors(dge_filtered)
 
-covars <- c("PF_READS","PF_READS_ALIGNED","PCT_PF_READS_ALIGNED","PCT_RIBOSOMAL_BASES","PCT_USABLE_BASES","MEDIAN_3PRIME_BIAS","PERCENT_DUPLICATION","ESTIMATED_LIBRARY_SIZE","batch","msex","study","age_draw")
+bloodvars <- c("hemacrit_at_draw","hemoglbn_at_draw","mch_at_draw","mchc_at_draw","mcv_at_draw","platelet_at_draw","rbc_at_draw", "rdw_at_draw","wbc_at_draw","fasting.f","hemotologic_rx_at_draw")
+
+dge_filtered$samples <- cbind(dge_filtered$samples,ROSmaster[match(dge_filtered$samples$projid,ROSmaster$projid),bloodvars])
+
+covars <- c("PF_READS","PF_READS_ALIGNED","PCT_PF_READS_ALIGNED","PCT_RIBOSOMAL_BASES","PCT_USABLE_BASES","MEDIAN_3PRIME_BIAS","PERCENT_DUPLICATION","ESTIMATED_LIBRARY_SIZE","batch","msex","study","age_draw",bloodvars)
 techvars <- c("PF_READS","PF_READS_ALIGNED","PCT_PF_READS_ALIGNED","PCT_RIBOSOMAL_BASES","PCT_USABLE_BASES","MEDIAN_3PRIME_BIAS","PERCENT_DUPLICATION","ESTIMATED_LIBRARY_SIZE","batch","study")
 
 ### plot correlations
@@ -154,7 +159,7 @@ pcs <- getPCs.dge(dge_filtered, n = 20)
 corMatrix <- getCorrelations(cbind(dge_filtered$samples, pcs),
                              x=covars, 
                              y=colnames(pcs))
-ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7)
+ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7,sig.level = 0.05)
 
 ### perform variable selection on only techvars
 inclVars <- c("batch")
@@ -205,12 +210,44 @@ v.agesex <- voomWithQualityWeights(dge_filtered, model.agesex, plot=TRUE)
 fit.agesex <- lmFit(v.agesex, design=model.agesex, method="robust",maxit=10000)
 resids.agesex <- residuals(fit.agesex, y=v.agesex)
 
+### get residuals for tech and tech + age/sex + blood counts and hematologic diagnosis
+# need to treat this a little different because some of these vars have missing values in the DGE object
+
+bloodvars_tocovary <- bloodvars[c(2,4:6,9:11)]
+projidstokeep <- dge_filtered$samples$projid[complete.cases(dge_filtered$samples[,bloodvars_tocovary])]
+dge_filtered_sub <- dge_filtered[,projidstokeep]
+
+model.agesex.blood <- model.matrix(~ batch +
+                               PCT_USABLE_BASES +
+                               PCT_PF_READS_ALIGNED +
+                               PERCENT_DUPLICATION +
+                               MEDIAN_3PRIME_BIAS +
+                               ESTIMATED_LIBRARY_SIZE +
+                               study +
+                               msex +
+                               age_draw +
+                               hemotologic_rx_at_draw +
+                               fasting.f +
+                               hemoglbn_at_draw +
+                               mcv_at_draw +
+                               wbc_at_draw,
+                             data=dge_filtered_sub$samples)
+
+
+
+v.agesex.blood <- voomWithQualityWeights(dge_filtered_sub, model.agesex.blood, plot=TRUE)
+fit.agesex.blood <- lmFit(v.agesex.blood, design=model.agesex.blood, method="robust",maxit=10000)
+resids.agesex.blood <- residuals(fit.agesex.blood, y=v.agesex.blood)
 
 rbeffect <- removeBatchEffect(v$E,batch = v$targets$batch,covariates = model[,-c(1,2)])
 rbeffect.agesex <- removeBatchEffect(v.agesex$E,batch = v.agesex$targets$batch,covariates = model.agesex[,-c(1,2)])
+rbeffect.agesex.blood <- removeBatchEffect(v.agesex.blood$E,batch = v.agesex.blood$targets$batch,covariates = model.agesex.blood[,-c(1,2)])
 
 saveRDS(resids,file="input/monocytes_techonlynorm_residuals.rds")
 saveRDS(rbeffect,file="input/monocytes_techonlynorm_removebatcheffectlogCPM.rds")
 saveRDS(resids.agesex,file="input/monocytes_techandagesex_residuals.rds")
 saveRDS(rbeffect.agesex,file="input/monocytes_techandagesex_removebatcheffectlogCPM.rds")
+saveRDS(resids.agesex.blood,file="input/monocytes_techandagesexblood_residuals.rds")
+saveRDS(rbeffect.agesex.blood,file="input/monocytes_techandagesexblood_removebatcheffectlogCPM.rds")
 saveRDS(v,file="input/monocytes_v.rds")
+saveRDS(v.agesex.blood,file="input/monocytes_v_blood.rds")
