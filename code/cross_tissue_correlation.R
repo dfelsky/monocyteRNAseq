@@ -225,8 +225,7 @@ dev.off()
 ##### GTEX and xQTLserve analysis
 #################################
 #################################
-#### phrased: "to test if effects of monocyte genes on brain phenotypes are due to mutual regulation or separate processes"
-# read in xQTL serve data from ROSMAP
+# read in xQTL-serve data from ROSMAP # loop takes long time because it downloads files directly and removes
 
 teq <- list()
 for (chr in seq(1,22)) {
@@ -287,6 +286,21 @@ allegenescast <- reshape(allegenes2,
 
 gtm <- merge(xmerged,allegenescast,by="gene",all.x=T)
 
+##### monocyte BootstrapQTL data
+mono_eqtl <- readRDS("output/eqtl/allegenes.rds")
+
+topeqtls_mono <- lapply(unique(mono_eqtl$eGene), function(gene) {
+  datsub <- mono_eqtl[which(mono_eqtl$eGene==gene),]
+  datsub[which(datsub$eGene_pval==min(datsub$eGene_pval)),][1,]
+})
+do.call(rbind,topeqtls_mono)
+
+gtm2 <- merge(mono_eqtl,gtm,by.x=c("eGene","chr"),by.y=c("gene","chr"),all=T)
+
+saveRDS(gtm2,"output/combined_eQTL_and_correlation_data.rds")
+
+
+###################################
 #### Plot cross-tissue correlation with eQTL data
 
 eqtl_plot_1 <- ggplot(data=gtm, aes(x=cor_r,y=abs(slope.Brain_Frontal_Cortex_BA9/slope_se.Brain_Frontal_Cortex_BA9),fill=cor_sig))+
