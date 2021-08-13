@@ -226,12 +226,13 @@ dev.off()
 #################################
 #################################
 # read in xQTL-serve data from ROSMAP # loop takes long time because it downloads files directly and removes
-
+## try only sig files http://mostafavilab.stat.ubc.ca/xqtl/xQTL_updated_data/sigeQTLs/sigeQTLchr10_1Mb.csv
 teq <- list()
 for (chr in seq(1,22)) {
   print(paste0("downloading chromosome ",chr))
   
-  xfile <- paste0("http://mostafavilab.stat.ubc.ca/xqtl/xQTL_updated_data/eQTLs/eQTLchr",chr,"_1Mb.csv")
+  #xfile <- paste0("http://mostafavilab.stat.ubc.ca/xqtl/xQTL_updated_data/eQTLs/eQTLchr",chr,"_1Mb.csv")
+  xfile <- paste0("http://mostafavilab.stat.ubc.ca/xqtl/xQTL_updated_data/sigeQTLs/sigeQTLchr",chr,"_1Mb.csv")
   xfileloc <- paste0("input/xQTLserve/inputfile_chr",chr,".csv")
   download.file(url = xfile,destfile = xfileloc)
   
@@ -254,9 +255,9 @@ for (chr in seq(1,22)) {
 
 
 teqall <- do.call(rbind,teq)
-#saveRDS(teqall, "input/xQTLserve/xQTL_all_commongene_egenes.rds")
+#saveRDS(teqall, "input/xQTLserve/xQTL_all_commongene_egenes_onlysig.rds")
 
-teqall <- readRDS("input/xQTLserve/xQTL_all_commongene_egenes.rds")
+teqall <- readRDS("input/xQTLserve/xQTL_all_commongene_egenes_onlysig.rds")
 
 xmerged <- merge(allinfo.both,teqall,by.x="gene",by.y="ENSG",all=T)
 
@@ -284,7 +285,7 @@ allegenescast <- reshape(allegenes2,
                          idvar = "gene",
                          direction="wide")
 
-gtm <- merge(xmerged,allegenescast,by="gene",all.x=T)
+gtm <- merge(xmerged,allegenescast,by="gene",all=T)
 
 ##### monocyte BootstrapQTL data
 mono_eqtl <- readRDS("output/eqtl/allegenes.rds")
@@ -293,17 +294,43 @@ topeqtls_mono <- lapply(unique(mono_eqtl$eGene), function(gene) {
   datsub <- mono_eqtl[which(mono_eqtl$eGene==gene),]
   datsub[which(datsub$eGene_pval==min(datsub$eGene_pval)),][1,]
 })
-do.call(rbind,topeqtls_mono)
+tqtlm <- do.call(rbind,topeqtls_mono)
 
-gtm2 <- merge(mono_eqtl,gtm,by.x=c("eGene","chr"),by.y=c("gene","chr"),all=T)
+gtm2 <- merge(tqtlm,gtm,by.x=c("eGene","chr"),by.y=c("gene","chr"),all=T)
 
 saveRDS(gtm2,"output/combined_eQTL_and_correlation_data.rds")
 
 
 ###################################
 #### Plot cross-tissue correlation with eQTL data
+alleqtl <- readRDS("output/combined_eQTL_and_correlation_data.rds")
 
-eqtl_plot_1 <- ggplot(data=gtm, aes(x=cor_r,y=abs(slope.Brain_Frontal_Cortex_BA9/slope_se.Brain_Frontal_Cortex_BA9),fill=cor_sig))+
+### make columns for ease of analysis
+alleqtl$m_p <- -log10(alleqtl$eGene_pval)
+alleqtl$m_t <- abs(alleqtl$statistic)
+alleqtl$m_sig <- ifelse(alleqtl$eGene_pval < 0.05,1,0)
+alleqtl$m_sig[which(is.na(alleqtl$m_sig))] <- 0
+  
+alleqtl$x_p <- -log10(alleqtl$p)
+alleqtl$x_t <- abs(alleqtl$t)
+alleqtl$x_sig <- ifelse(alleqtl$p < 0.05,1,0)
+alleqtl$x_sig[which(is.na(alleqtl$x_sig))] <- 0
+
+alleqtl$g_p <- -log10(alleqtl$qval.Brain_Frontal_Cortex_BA9)
+alleqtl$g_t <- abs(alleqtl$slope.Brain_Frontal_Cortex_BA9/alleqtl$slope_se.Brain_Frontal_Cortex_BA9)
+alleqtl$g_sig <- ifelse(alleqtl$qval.Brain_Frontal_Cortex_BA9 < 0.05,1,0)
+alleqtl$g_sig[which(is.na(alleqtl$g_sig))] <- 0
+
+cor.test(alleqtl$x_t,alleqtl$g_t)
+
+fisher.test(ftable(data=alleqtl, cor_sig ~ x_sig))
+fisher.test(ftable(data=alleqtl, cor_sig ~ g_sig))
+fisher.test(ftable(data=alleqtl, cor_sig ~ m_sig))
+
+
+####################################
+
+eqtl_plot_1 <- ggplot(data=alleqtl, aes(x=cor_r,y=abs(slope.Brain_Frontal_Cortex_BA9/slope_se.Brain_Frontal_Cortex_BA9),fill=cor_sig))+
   geom_point(aes(col=cor_sig))+
   scale_color_manual(values = colors()[c(12,30,54)])+
   geom_text_repel(data=subset(gtm,cor_fdr < 0.05),aes(label=hugo),size=2.5)+
