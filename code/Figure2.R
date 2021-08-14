@@ -40,15 +40,17 @@ all_rm <- merge(rm05,rm1)
 all_rm_m <- melt(all_rm,is.vars=c("tissue","pheno"))
 names(all_rm_m)[3] <- "siglevel"
 
-subset(all_rm_m, tissue %in% c("monocyte","dlpfc_cells") & siglevel=="FDR_05") %>%
+pdf("paper/figures/TWAS_results_summary_with_sensitivity.pdf",w=14,h=6)
+subset(all_rm_m, tissue %nin% c("dlpfc") & siglevel=="FDR_05") %>%
 ggplot(aes(y=value,x=pheno,fill=siglevel))+
   geom_bar(stat = "identity",position = "identity",show.legend = F)+
   facet_wrap(~tissue,nrow=1,scales="free")+
   geom_text(aes(label=value),hjust=-0.1,size=2.5)+
   coord_flip()+
   scale_fill_aaas()+
-  labs(x="Phenotype",y="Number of genes (FDR=0.05)")+
-  theme_pubclean()
+  labs(x="Phenotype",y="Number of genes (FDR<0.05)")+
+  theme_tufte(base_family = "sans")
+dev.off()
 
 
 ##############

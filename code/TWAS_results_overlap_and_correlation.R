@@ -25,7 +25,7 @@ ttall_labelled <- lapply(ttall_unlabelled, function(x) {
 commongenes <- intersect(ttall_unlabelled$monocyte$plaq_n_sqrt$gene,
                          ttall_unlabelled$dlpfc_cells$plaq_n_sqrt$gene)
 
-ttm <- ttall_labelled$monocyte
+ttm <- ttall_labelled$monocyte_blood
 ttdc <- ttall_labelled$dlpfc_cells
 
 index <- 1
@@ -69,14 +69,17 @@ setdata <- as.data.frame(do.call(rbind,stestlist))
 setdata
 
 setdata$pheno <- factor(setdata$pheno,levels=c(pathnames,cognames))
+
+pdf("paper/figures/TWAS_result_HGoverlap_plot_monocyte_blood.pdf",h=5,w=8)
 ggplot(data=setdata,aes(y=-log10(p),x=pheno,col=FDR))+
   geom_point(size=5)+
   scale_color_aaas()+
   coord_flip()+
   geom_hline(yintercept = -log10(0.05),lty=2,col="red")+
   geom_text(aes(label=overlap),col="white",size=2,fontface="bold")+
+  labs(y="Hypergeometric overlap significance (-log10(p))",x="Phenotype")+
   theme_hc()
-
+dev.off()
 
 ##### cross-tissue effect correlations 
 ### read in wide effects

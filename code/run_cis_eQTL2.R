@@ -50,7 +50,7 @@ write.table(geneloc_mono,file=paste("input/eqtl/matrix_eqtl_input_files/geneloc_
 ############################################################
 # LOOP (genetics, expression, and covariate cols must match)
 ############################################################
-for (chr in seq(2,22)) {
+for (chr in seq(1,22)) {
   print(paste0("##### processing chromosome ",chr))
   
   print("## reading genotype data")

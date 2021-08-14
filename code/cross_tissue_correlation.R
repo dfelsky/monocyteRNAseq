@@ -9,6 +9,8 @@ library(gridExtra)
 library(reshape2)
 library(rms)
 library(cowplot)
+library(VennDiagram)
+library(RColorBrewer)
 
 load("input/all_genes_ensembl.RData")
 
@@ -258,34 +260,20 @@ teqall <- do.call(rbind,teq)
 #saveRDS(teqall, "input/xQTLserve/xQTL_all_commongene_egenes_onlysig.rds")
 
 teqall <- readRDS("input/xQTLserve/xQTL_all_commongene_egenes_onlysig.rds")
+teqall$fdr <- p.adjust(teqall$p,method="BH")
 
-xmerged <- merge(allinfo.both,teqall,by.x="gene",by.y="ENSG",all=T)
+xmerged <- merge(allinfo.both,teqall,by.x="gene",by.y="ENSG",all.x=T)
 
 ####### read in GTEX data for frontal cortex
-gtex_allfiles <- list.files("input/GTEx",full.names = T)
+gtex_frontal <- read.table("input/GTEx/Brain_Frontal_Cortex_BA9.v8.egenes.txt",sep="\t",header=T)
+gtex_frontal$gene_id <- gsub("\\..*","",gtex_frontal$gene_id)
 
-tomatch <- c("Brain")
-gtexfiles <- unique(grep(paste(tomatch,collapse="|"),gtex_allfiles, value=TRUE))
+gtex_frontal <- gtex_frontal[,c("gene_id","maf","slope","slope_se","pval_perm","pval_beta","qval","pval_nominal_threshold","log2_aFC")]
 
-allegeneslist <- lapply(gtexfiles, function(x){
-  y <- read.table(x,sep="\t",header=T)
-  y$tissue <- gsub("\\..*","",basename(x))
-  y
-})
+gtex_sigonly <- subset(gtex_frontal, qval < 0.05)
 
-allegenes <- do.call(rbind,allegeneslist)
-rownames(allegenes) <- NULL
-allegenes$gene <- gsub("\\..*","",allegenes$gene_id)
-allegenes2 <- allegenes[,c("gene","maf","slope","slope_se","pval_perm","pval_beta","qval","pval_nominal_threshold","log2_aFC","tissue")]
-
-
-allegenescast <- reshape(allegenes2,
-                         v.names = names(allegenes2)[2:9],
-                         timevar = "tissue",
-                         idvar = "gene",
-                         direction="wide")
-
-gtm <- merge(xmerged,allegenescast,by="gene",all=T)
+gtm <- merge(xmerged,gtex_sigonly,by.x="gene",by.y="gene_id",all.x=T)
+gtm$chr <- NULL
 
 ##### monocyte BootstrapQTL data
 mono_eqtl <- readRDS("output/eqtl/allegenes.rds")
@@ -295,11 +283,13 @@ topeqtls_mono <- lapply(unique(mono_eqtl$eGene), function(gene) {
   datsub[which(datsub$eGene_pval==min(datsub$eGene_pval)),][1,]
 })
 tqtlm <- do.call(rbind,topeqtls_mono)
+tqtlm$tissue <- NULL
 
-gtm2 <- merge(tqtlm,gtm,by.x=c("eGene","chr"),by.y=c("gene","chr"),all=T)
+gtm2 <- merge(tqtlm,gtm,by.x="eGene",by.y="gene",all.y=T)
 
 saveRDS(gtm2,"output/combined_eQTL_and_correlation_data.rds")
 
+########### merge problem - there are > 400 genes intersecting between monocyte eqtl results and xQTL, but only ~250 show up in alleqtl
 
 ###################################
 #### Plot cross-tissue correlation with eQTL data
@@ -316,20 +306,51 @@ alleqtl$x_t <- abs(alleqtl$t)
 alleqtl$x_sig <- ifelse(alleqtl$p < 0.05,1,0)
 alleqtl$x_sig[which(is.na(alleqtl$x_sig))] <- 0
 
-alleqtl$g_p <- -log10(alleqtl$qval.Brain_Frontal_Cortex_BA9)
-alleqtl$g_t <- abs(alleqtl$slope.Brain_Frontal_Cortex_BA9/alleqtl$slope_se.Brain_Frontal_Cortex_BA9)
-alleqtl$g_sig <- ifelse(alleqtl$qval.Brain_Frontal_Cortex_BA9 < 0.05,1,0)
+alleqtl$g_p <- -log10(alleqtl$qval)
+alleqtl$g_t <- abs(alleqtl$slope/alleqtl$slope_se)
+alleqtl$g_sig <- ifelse(alleqtl$qval < 0.05,1,0)
 alleqtl$g_sig[which(is.na(alleqtl$g_sig))] <- 0
 
-cor.test(alleqtl$x_t,alleqtl$g_t)
+
+#### Venn Diagrams of overlap
+xqtls <- alleqtl$hugo[which(alleqtl$x_sig==1)]
+gqtls <- alleqtl$hugo[which(alleqtl$g_sig==1)]
+mqtls <- alleqtl$hugo[which(alleqtl$m_sig==1)]
+corsigp <- alleqtl$hugo[which(alleqtl$cor_sig==2)]
+corsigq <- alleqtl$hugo[which(alleqtl$cor_sig %in% c(1,2))]
+
+myCol <- brewer.pal(3, "Pastel2")
+venn.diagram(list(gqtls,xqtls,mqtls),
+             filename = "paper/figures/Fig1_venndiagram.tif",
+             imagetype = "tiff",category.names = c("GTEx frontal cortex","xQTL serve DLPFC","monocyte"),
+             # Circles
+             lwd = 3,
+             # Numbers
+             cex = 2,
+             fontface = "bold",
+             fontfamily = "sans",
+             # Set names
+             cat.cex = 0,
+             cat.fontface = "bold",
+             cat.default.pos = "outer",
+             cat.pos = c(-27, 27, 135),
+             cat.dist = c(0.055, 0.055, 0.085),
+             cat.fontfamily = "sans",
+             rotation = 1)
+
+### cross-tabs to show correlations
 
 fisher.test(ftable(data=alleqtl, cor_sig ~ x_sig))
 fisher.test(ftable(data=alleqtl, cor_sig ~ g_sig))
 fisher.test(ftable(data=alleqtl, cor_sig ~ m_sig))
 
 
-####################################
 
+
+
+
+
+####################################
 eqtl_plot_1 <- ggplot(data=alleqtl, aes(x=cor_r,y=abs(slope.Brain_Frontal_Cortex_BA9/slope_se.Brain_Frontal_Cortex_BA9),fill=cor_sig))+
   geom_point(aes(col=cor_sig))+
   scale_color_manual(values = colors()[c(12,30,54)])+
@@ -380,11 +401,35 @@ ad$gtex_brainQTL <- ifelse(ad$pval_perm.Brain_Frontal_Cortex_BA9<0.05,1,0)
 
 fisher.test(table(ad$gtex_brainQTL,ad$cor_sig_celltype))
 
-ggplot(data=gtm,aes(y=abs(slope.Brain_Frontal_Cortex_BA9/slope_se.Brain_Frontal_Cortex_BA9),x=cor_sig))+
-  geom_violin(draw_quantiles = T)+
-  geom_jitter(width=0.1,alpha=0.2,size=0.5)+
-  theme_minimal()
+library(ggbeeswarm)
+library(cowplot)
 
+plotgtex <- ggplot(data=alleqtl,aes(y=g_p,x=cor_sig,col=cor_sig))+
+  geom_quasirandom(size=0.5,alpha=0.9,inherit.aes = T)+
+  stat_summary(fun = median, fun.min = median, fun.max = median,
+               geom = "crossbar", width = 0.8,size=0.4,col="grey49",alpha=0.8)+
+  scale_color_manual(values = colors()[c(12,30,54)])+
+  labs(y="eQTL strength [-log10(pcor)]", x="Cross-tissue correlation group",title="GTEx (BA9)")+
+  theme_tufte(base_family = "sans")
 
-summary(lm(data=gtm, abs(slope.Brain_Frontal_Cortex_BA9/slope_se.Brain_Frontal_Cortex_BA9) ~ cor_sig))
+plotxqtl <- ggplot(data=alleqtl,aes(y=x_p,x=cor_sig,col=cor_sig))+
+  geom_quasirandom(size=0.5,alpha=0.9,inherit.aes = T)+
+  stat_summary(fun = median, fun.min = median, fun.max = median,
+               geom = "crossbar", width = 0.8,size=0.4,col="grey49",alpha=0.8)+
+  scale_color_manual(values = colors()[c(12,30,54)])+
+  labs(y="eQTL strength [-log10(pcor)]", x="Cross-tissue correlation group",title="ROS/MAP (DLPFC)")+
+  theme_tufte(base_family = "sans")
+
+plotmono <- ggplot(data=alleqtl,aes(y=m_p,x=cor_sig,col=cor_sig))+
+  geom_quasirandom(size=0.5,alpha=0.9,inherit.aes = T)+
+  stat_summary(fun = median, fun.min = median, fun.max = median,
+               geom = "crossbar", width = 0.8,size=0.4,col="grey49",alpha=0.8)+
+  scale_color_manual(values = colors()[c(12,30,54)])+
+  labs(y="eQTL strength [-log10(pcor)]", x="Cross-tissue correlation group",title="ROS/MAP (monocytes)")+
+  theme_tufte(base_family = "sans")
+
+pdf(file="paper/figures/Fig1_beeswarmplots.pdf",w=6,h=3)
+print(plot_grid(plotmono,plotxqtl,plotgtex,nrow=1))
+dev.off()
+
 
