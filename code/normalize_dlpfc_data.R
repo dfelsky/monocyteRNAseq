@@ -100,6 +100,7 @@ saveRDS(dge_filtered,file="input/dlpfc_filtered_only.rds")
 
 
 ### variable selection
+dge_filtered <- readRDS("input/dlpfc_filtered_only.rds")
 dge_filtered <- calcNormFactors(dge_filtered)
 
 covars <- c("PF_READS","PF_READS_ALIGNED","PCT_PF_READS_ALIGNED","PCT_RIBOSOMAL_BASES","PCT_CODING_BASES","PCT_UTR_BASES","PCT_INTRONIC_BASES","PCT_USABLE_BASES","PCT_INTERGENIC_BASES","PCT_MRNA_BASES","MEDIAN_3PRIME_BIAS","MEDIAN_CV_COVERAGE","MEDIAN_5PRIME_BIAS","PERCENT_DUPLICATION","LOG_ESTIMATED_LIBRARY_SIZE","LOG_PF_READS_ALIGNED","ESTIMATED_LIBRARY_SIZE","batch","msex","study","pmi","age_death")
@@ -109,14 +110,18 @@ techvars <- c("PF_READS","PF_READS_ALIGNED","PCT_PF_READS_ALIGNED","PCT_RIBOSOMA
 corMatrix <- getCorrelations(dge_filtered$samples,
                              x=covars, 
                              y=covars)
-ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=6)
+pdf("paper/figures/DLPFC_covariate_correlations.pdf",w=8,h=8)
+ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=6,sig.level = 0.05,lab = T,lab_size = 2,title=paste0("DLPFC, n=",nrow(dge_filtered$samples)))
+dev.off()
 
 ### Now PCA to check correlations of confounders with PCs
 pcs <- getPCs.dge(dge_filtered, n = 20)
 corMatrix <- getCorrelations(cbind(dge_filtered$samples, pcs),
                              x=covars, 
                              y=colnames(pcs))
-ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7)
+pdf("paper/figures/DLPFC_covariate_PC_effects.pdf",w=8,h=8)
+ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7,sig.level = 0.05,lab = T,lab_size = 2,title=paste0("DLPFC, n=",nrow(dge_filtered$samples)))
+dev.off()
 
 ### perform variable selection on only techvars
 inclVars <- c("batch")
@@ -125,14 +130,35 @@ swSelection
 
 ### sanity check
 covariates  <- as.character(swSelection$variable[swSelection$iteration == max(swSelection$iteration) & swSelection$selected])
-resids <- getResiduals(dge_filtered, vars=covariates, values="counts")
+model.agesex <- model.matrix(~ batch +
+                               MEDIAN_CV_COVERAGE+
+                               PCT_RIBOSOMAL_BASES+
+                               PCT_CODING_BASES+
+                               PCT_UTR_BASES+
+                               LOG_ESTIMATED_LIBRARY_SIZE+
+                               LOG_PF_READS_ALIGNED+
+                               MEDIAN_5PRIME_TO_3PRIME_BIAS+
+                               PCT_PF_READS_ALIGNED+
+                               study+
+                               PERCENT_DUPLICATION+
+                               MEDIAN_3PRIME_BIAS+
+                               PCT_INTERGENIC_BASES+
+                               pmi+
+                               age_death+
+                               msex,
+                             data=dge_filtered$samples)
 
-pcs <- getPCs.matrix(resids$resids, n=20)
+v.agesex <- voom(dge_filtered, model.agesex, plot=TRUE)
+fit.agesex <- lmFit(v.agesex, design=model.agesex, method="robust",maxit=10000)
+resids.agesex <- residuals(fit.agesex, y=v.agesex)
+
+pcs <- getPCs.matrix(resids.agesex, n=20)
 corMatrix <- getCorrelations(cbind(dge_filtered$samples, pcs),
                              x=covars, 
                              y=colnames(pcs))
-
-ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7)
+pdf("paper/figures/DLPFC_covariate_PC_effects_aftercorrection.pdf",w=8,h=8)
+ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7,sig.level = 0.05,lab = T,lab_size = 2,title=paste0("DLPFC, n=",nrow(dge_filtered$samples)))
+dev.off()
 
 
 # covariates listed in covariates object from selection above

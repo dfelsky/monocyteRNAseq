@@ -12,7 +12,7 @@ ttall_unlabelled <- readRDS("output/all_TWAS_results.rds")
 
 ### name files for plotting
 pathnames <- c("Neuritic plaques","Diffuse plaques","Total AB","PHF tau","NFT","Gross cerebral infarcts","Micro cerebral infarcts","Arteriolosclerosis","Cerebral AA","Cerebral atherosclerosis","Lewy body stage","Hippocampal sclerosis","TDP-43","PD Dx","Patho AD","PAM VM Caudate","PAM post. putamen","PAM IT","PAM MF")
-cognames <- c("Global","Episodic memory","Perceptual orientation","Perceptual speed","Semantic memory","Working memory","MMSE")
+cognames <- c("Episodic memory","Perceptual orientation","Perceptual speed","Semantic memory","Working memory","Global","MMSE")
 
 ttall_labelled <- lapply(ttall_unlabelled, function(x) {
   names(x) <- c(pathnames,cognames)
@@ -70,7 +70,7 @@ setdata
 
 setdata$pheno <- factor(setdata$pheno,levels=c(pathnames,cognames))
 
-pdf("paper/figures/TWAS_result_HGoverlap_plot_monocyte_blood.pdf",h=5,w=8)
+pdf("paper/figures/TWAS_result_HGoverlap_plot_monocyte_blood.pdf",h=6,w=6)
 ggplot(data=setdata,aes(y=-log10(p),x=pheno,col=FDR))+
   geom_point(size=5)+
   scale_color_aaas()+
@@ -78,7 +78,7 @@ ggplot(data=setdata,aes(y=-log10(p),x=pheno,col=FDR))+
   geom_hline(yintercept = -log10(0.05),lty=2,col="red")+
   geom_text(aes(label=overlap),col="white",size=2,fontface="bold")+
   labs(y="Hypergeometric overlap significance (-log10(p))",x="Phenotype")+
-  theme_hc()
+  theme_clean()
 dev.off()
 
 ##### cross-tissue effect correlations 
@@ -164,3 +164,5 @@ for (pheno in phenosofinterest) {
     theme_minimal()
   
 }
+
+

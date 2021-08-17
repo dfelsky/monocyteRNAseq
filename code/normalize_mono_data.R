@@ -148,35 +148,71 @@ dge_filtered$samples <- cbind(dge_filtered$samples,ROSmaster[match(dge_filtered$
 covars <- c("PF_READS","PF_READS_ALIGNED","PCT_PF_READS_ALIGNED","PCT_RIBOSOMAL_BASES","PCT_USABLE_BASES","MEDIAN_3PRIME_BIAS","PERCENT_DUPLICATION","ESTIMATED_LIBRARY_SIZE","batch","msex","study","age_draw",bloodvars)
 techvars <- c("PF_READS","PF_READS_ALIGNED","PCT_PF_READS_ALIGNED","PCT_RIBOSOMAL_BASES","PCT_USABLE_BASES","MEDIAN_3PRIME_BIAS","PERCENT_DUPLICATION","ESTIMATED_LIBRARY_SIZE","batch","study")
 
+
+#### subset dge_filtered to have all covariates
+bloodvars_tocovary <- bloodvars[c(2,4:6,9:11)]
+
+dge_filtered$samples <- cbind(dge_filtered$samples,ROSmaster[match(dge_filtered$samples$projid,ROSmaster$projid),bloodvars_tocovary])
+
+projidstokeep <- dge_filtered$samples$projid[complete.cases(dge_filtered$samples[,bloodvars_tocovary])]
+dge_filtered_sub <- dge_filtered[,projidstokeep]
+
+
 ### plot correlations
-corMatrix <- getCorrelations(dge_filtered$samples,
+corMatrix <- getCorrelations(dge_filtered_sub$samples,
                              x=covars, 
                              y=covars)
-ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=6)
+pdf("paper/figures/monocyte_covariate_correlations.pdf",w=8,h=8)
+ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=6,sig.level = 0.05,lab = T,lab_size = 2,title=paste0("monocytes, n=",nrow(dge_filtered_sub$samples)))
+dev.off()
 
 ### Now PCA to check correlations of confounders with PCs
-pcs <- getPCs.dge(dge_filtered, n = 20)
-corMatrix <- getCorrelations(cbind(dge_filtered$samples, pcs),
+pcs <- getPCs.dge(dge_filtered_sub, n = 20)
+corMatrix <- getCorrelations(cbind(dge_filtered_sub$samples, pcs),
                              x=covars, 
                              y=colnames(pcs))
-ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7,sig.level = 0.05)
+pdf("paper/figures/monocyte_covariate_PC_effects.pdf",w=8,h=8)
+ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7,sig.level = 0.05,lab = T,lab_size = 2,title=paste0("monocytes, n=",nrow(dge_filtered_sub$samples)))
+dev.off()
 
 ### perform variable selection on only techvars
 inclVars <- c("batch")
-swSelection <- detectSignCovariates(dge_filtered, varsFix=inclVars, varsOpt=techvars[techvars != "batch"], npc=20, maxIter=15, values="counts")
+swSelection <- detectSignCovariates(dge_filtered_sub, varsFix=inclVars, varsOpt=techvars[techvars != "batch"], npc=20, maxIter=15, values="counts")
 swSelection
 
 ### sanity check
-covariates  <- as.character(swSelection$variable[swSelection$iteration == max(swSelection$iteration) & swSelection$selected])
-resids <- getResiduals(dge_filtered, vars=covariates, values="counts")
+covariates_fromforward  <- as.character(swSelection$variable[swSelection$iteration == max(swSelection$iteration) & swSelection$selected])
 
-pcs <- getPCs.matrix(resids$resids, n=20)
-corMatrix <- getCorrelations(cbind(dge_filtered$samples, pcs),
+covariates <- c("batch","PCT_USABLE_BASES","PERCENT_DUPLICATION","MEDIAN_3PRIME_BIAS","study","PCT_PF_READS_ALIGNED","ESTIMATED_LIBRARY_SIZE","msex","age_draw","hemoglbn_at_draw","mchc_at_draw","mcv_at_draw","platelet_at_draw","wbc_at_draw","fasting.f","hemotologic_rx_at_draw")
+
+model.agesex.blood <- model.matrix(~ batch +
+                                     PCT_USABLE_BASES +
+                                     PCT_PF_READS_ALIGNED +
+                                     PERCENT_DUPLICATION +
+                                     MEDIAN_3PRIME_BIAS +
+                                     ESTIMATED_LIBRARY_SIZE +
+                                     study +
+                                     msex +
+                                     age_draw +
+                                     hemotologic_rx_at_draw +
+                                     fasting.f +
+                                     hemoglbn_at_draw +
+                                     platelet_at_draw +
+                                     mcv_at_draw +
+                                     wbc_at_draw,
+                                   data=dge_filtered_sub$samples)
+
+v.agesex.blood <- voomWithQualityWeights(dge_filtered_sub, model.agesex.blood, plot=TRUE)
+fit.agesex.blood <- lmFit(v.agesex.blood, design=model.agesex.blood, method="robust",maxit=10000)
+resids.agesex.blood <- residuals(fit.agesex.blood, y=v.agesex.blood)
+
+pcs <- getPCs.matrix(resids.agesex.blood, n=20)
+corMatrix <- getCorrelations(cbind(dge_filtered_sub$samples, pcs),
                                  x=covars, 
                                  y=colnames(pcs))
-
-ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7)
-
+pdf("paper/figures/monocyte_covariate_PC_effects_aftercorrection.pdf",w=8,h=8)
+ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7,sig.level = 0.05,lab = T,lab_size = 2,title=paste0("monocytes, n=",nrow(dge_filtered_sub$samples)))
+dev.off()
 
 # covariates listed in covariates object from selection above
 model <- model.matrix(~ batch +
@@ -210,28 +246,34 @@ v.agesex <- voomWithQualityWeights(dge_filtered, model.agesex, plot=TRUE)
 fit.agesex <- lmFit(v.agesex, design=model.agesex, method="robust",maxit=10000)
 resids.agesex <- residuals(fit.agesex, y=v.agesex)
 
+
+##### this section is repetivive - keep in case adjustments to covarates need to be made later
 ### get residuals for tech and tech + age/sex + blood counts and hematologic diagnosis
 # need to treat this a little different because some of these vars have missing values in the DGE object
 
 bloodvars_tocovary <- bloodvars[c(2,4:6,9:11)]
+
+dge_filtered$samples <- cbind(dge_filtered$samples,ROSmaster[match(dge_filtered$samples$projid,ROSmaster$projid),bloodvars_tocovary])
+
 projidstokeep <- dge_filtered$samples$projid[complete.cases(dge_filtered$samples[,bloodvars_tocovary])]
 dge_filtered_sub <- dge_filtered[,projidstokeep]
 
 model.agesex.blood <- model.matrix(~ batch +
-                               PCT_USABLE_BASES +
-                               PCT_PF_READS_ALIGNED +
-                               PERCENT_DUPLICATION +
-                               MEDIAN_3PRIME_BIAS +
-                               ESTIMATED_LIBRARY_SIZE +
-                               study +
-                               msex +
-                               age_draw +
-                               hemotologic_rx_at_draw +
-                               fasting.f +
-                               hemoglbn_at_draw +
-                               mcv_at_draw +
-                               wbc_at_draw,
-                             data=dge_filtered_sub$samples)
+                                     PCT_USABLE_BASES +
+                                     PCT_PF_READS_ALIGNED +
+                                     PERCENT_DUPLICATION +
+                                     MEDIAN_3PRIME_BIAS +
+                                     ESTIMATED_LIBRARY_SIZE +
+                                     study +
+                                     msex +
+                                     age_draw +
+                                     hemotologic_rx_at_draw +
+                                     fasting.f +
+                                     hemoglbn_at_draw +
+                                     platelet_at_draw +
+                                     mcv_at_draw +
+                                     wbc_at_draw,
+                                   data=dge_filtered_sub$samples)
 
 
 
