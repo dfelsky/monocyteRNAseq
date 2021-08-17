@@ -10,8 +10,8 @@ library(ggsci)
 library(gplots)
 library(Hmisc)
 
-load("output/WGCNA/mono/mono2_signed_signed_minKMEtoStay03-block.1.RData")
-net <- readRDS("output/WGCNA/mono/net.rds")
+load("output/WGCNA/mono_blood/mono_blood_signed_signed_minKMEtoStay03_noPAM-block.1.RData")
+net <- readRDS("output/WGCNA/mono_blood/net_noPAM.rds")
 
 TOM <- as.matrix(TOM)
 dimnames(TOM) <- list(names(net$colors),names(net$colors))
@@ -50,4 +50,4 @@ ggplot(n, aes(x = x, y = y, xend = xend, yend = yend)) +
   theme_blank()
 
 
-saveRDS(list(n=n,colpal=colpal),file="output/WGCNA/mono/networkplot_objects.rds")
+saveRDS(list(n=n,colpal=colpal),file="output/WGCNA/mono_blood/networkplot_objects.rds")
