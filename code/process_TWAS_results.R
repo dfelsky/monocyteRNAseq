@@ -97,8 +97,8 @@ saveRDS(ttall_wide,"output/all_TWAS_results_wideformat.rds")
 
 
 #### version of ttall_wide with common variable names between dlpfc and monocyte cog vars
-pathnames2 <- c("Neuritic_plaques","Diffuse_plaques","Total_AB","PHF_tau","NFT","Gross_cerebral_infarcts","Micro_Cerebral_infarcts","Arteriolosclerosis","Cerebral_AA","Cerebral_atherosclerosis","Lewy_body_stage","Hippocampal_sclerosis","TDP_43","PD_Dx","Patho_AD","PAM_VM_Caudate","PAM_post_putamen","PAM_IT","PAM_MF")
-cognames2 <- c("Global","Episodic_memory","Perceptual_orientation","Perceptual_speed","Semantic_memory","Working_memory","MMSE")
+pathnames2 <- c("Neuritic_plaques","Diffuse_plaques","Total_AB","PHF_tau","NFT","Gross_cerebral_infarcts","Micro_cerebral_infarcts","Arteriolosclerosis","Cerebral_AA","Cerebral_atherosclerosis","Lewy_body_stage","Hippocampal_sclerosis","TDP_43","PD_Dx","Patho_AD","PAM_VM_Caudate","PAM_post_putamen","PAM_IT","PAM_MF")
+cognames2 <- c("Episodic_memory","Perceptual_orientation","Perceptual_speed","Semantic_memory","Working_memory","Global","MMSE")
 
 ttm_labelled <- ttm
 names(ttm_labelled) <- c(pathnames2,cognames2)
