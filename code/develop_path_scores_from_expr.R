@@ -6,15 +6,19 @@ library(ggthemes)
 library(ggsci)
 library(ggpubr)
 library(cowplot)
-load("/Users/dfelsky/Documents/data/all_genes_ensembl.RData")
-source("/Users/dfelsky/Documents/scripts/make_ROSmaster_feb12019.R")
+library(rms)
+load("input/all_genes_ensembl.RData")
+ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
 
-mono_expr <- readRDS("/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/WGCNA/mono/input_datExpr.rds")
+mono_expr <- readRDS("output/WGCNA/mono_blood/input_datExpr.rds")
 colnames(mono_expr) <- all_genes$external_gene_name[match(colnames(mono_expr),all_genes$ensembl_gene_id)]
-dlpfc_expr <- readRDS("/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/WGCNA/dlpfc/input_adjustedforcells_datExpr.rds")
+mono_expr <- mono_expr[,which(is.na(colnames(mono_expr))==F)]
+dlpfc_expr <- readRDS("output/WGCNA/dlpfc/input_adjustedforcells_datExpr.rds")
 
-ttm <- readRDS("/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/TWAS/Jan2021/ttm_allphenos.rds")
-ttd <- readRDS("/Users/dfelsky/Documents/monocyte_twas/integrated_analyses_v4/TWAS/Jan2021/ttd_cells_allphenos.rds")
+ttall_unlabelled <- readRDS("output/all_TWAS_results.rds")
+
+ttm <- ttall_unlabelled$monocyte_blood
+ttd <- ttall_unlabelled$dlpfc_cells
 
 pheno_mono <- ROSmaster[match(rownames(mono_expr),ROSmaster$projid),]
 pheno_dlpfc <- ROSmaster[match(rownames(dlpfc_expr),ROSmaster$projid),]
@@ -242,6 +246,7 @@ mono_pcs$projid <- rownames(mono_pcs)
 
 mono_dp_merge <- merge(mono_pcs,dlpfc_pcs,by="projid")
 mdpm <- merge(mono_dp_merge,ROSmaster,by="projid")
+mdpm <- subset(mdpm, cogdx %in% c(1,2,4))
 
 p1 <- ggplot(data=mdpm,aes(y=mono_PC1,x=plaq_d_sqrt))+
   geom_point()+
@@ -276,9 +281,7 @@ p5 <- ggplot(data=mdpm,aes(y=mono_PC5,x=plaq_d_sqrt))+
 
 plot_grid(p1,p2,p3,p4,p5,nrow=5)
 
-mdpms <- subset(mdpm, cogdx %in% c(1,2,4))
-summary(lm(data=mdpms, plaq_d_sqrt ~ mono_PC1*as.factor(cogdx)))
-
+summary(lm(data=mdpm, plaq_d_sqrt ~ mono_PC1*as.factor(cogdx)))
 
 ggplot(data=mdpm,aes(y=plaq_d_sqrt,x=dlpfc_PC1))+
   geom_point()+
@@ -300,21 +303,24 @@ itervec <- NULL
 validgenemods <- NULL
 validpcmods <- NULL
 
+phenolist <- c("mf3123","it3123","vm3123","pput3123","plaq_d_sqrt","arteriol_scler","caa_4gp")
+
 tissue <- "mono"
-feature.num.limit <- 50
+feature.num.limit <- 20
 
 full.index <- 1
-for (yphen in c("mf3123","it3123","vm3123","pput3123","plaq_d_sqrt","cvda_4gp2","amyloid_sqrt")) {
+for (yphen in phenolist) {
   if (tissue=="mono") {
     expdat <- mono_expr
     tt <- ttm
-    phenodat <- pheno_mono
-  } else {
-    expdat <- dlpfc_expr
-    tt <- ttd
-    phenodat <- pheno_dlpfc
-  }
+    phenodat <- pheno_mono 
+    } else { 
+      expdat <- dlpfc_expr
+      tt <- ttd
+      phenodat <- pheno_dlpfc
+      }
   
+  tt[[yphen]] <- tt[[yphen]][which(is.na(tt[[yphen]]$hugo)==F),]
   yphen_sig_genes <- tt[[yphen]]$hugo[which(tt[[yphen]]$adj.P.Val<0.05)]
   y <- phenodat[,yphen]
   x <- scale(expdat[,yphen_sig_genes])
@@ -356,7 +362,7 @@ result <- data.frame(genes=genemods,
 
 
 resmelt <- melt(result,id.vars = c("iter","phenotype"))
-resmelt$phenotype <- factor(resmelt$phenotype,levels=c("mf3123","it3123","vm3123","pput3123","plaq_d_sqrt","amyloid_sqrt","cvda_4gp2"))
+resmelt$phenotype <- factor(resmelt$phenotype,levels=phenolist)
 
 pr2 <- ggplot(subset(resmelt,variable %in% c("genes","PC")),aes(y=value,x=iter,col=variable))+
   geom_line(size=1.5)+

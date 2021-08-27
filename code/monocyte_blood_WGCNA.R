@@ -82,22 +82,22 @@ net <- blockwiseModules(datExpr = datExpr,
                         detectCutHeight = 0.995,
                         saveTOMs = T,
                         saveTOMFileBase = "mono_blood_signed_signed_minKMEtoStay03_noPAM",
-                        pamStage = T,loadTOM = T,
+                        pamStage = F,loadTOM = T,
                         pamRespectsDendro = F,
                         networkType = "signed",
-                        verbose = 10)
+                        verbose = 5)
 setwd("/Users/dfelsky/Documents/monocyteRNAseq")
 
-saveRDS(net,"output/WGCNA/mono_blood/net_PAM.rds")
-net <- readRDS("output/WGCNA/mono_blood/net_PAM.rds")
+saveRDS(net,"output/WGCNA/mono_blood/net_noPAM.rds")
+net <- readRDS("output/WGCNA/mono_blood/net_noPAM.rds")
 
-pdf(file="output/WGCNA/mono_blood/geneDendrogram_PAM.pdf", width = 12, height = 9)
+pdf(file="output/WGCNA/mono_blood/geneDendrogram_noPAM.pdf", width = 12, height = 9)
 plotDendroAndColors(net$dendrograms[[1]],
                     net$colors,
                     "Dynamic Tree Cut",
                     dendroLabels = FALSE,
                     hang = 0.02,
-                    addGuide = TRUE,
+                    addGuide = T,
                     guideHang = 0.05,
                     main = "Gene dendrogram and module colors")
 dev.off()
@@ -108,7 +108,7 @@ modlengths$hex <- col2hex(modlengths$module)
 modlengths$module <- factor(modlengths$module,levels=modlengths$module[order(modlengths$n)])
 modlengths <- subset(modlengths, module %nin% "grey")
 
-pdf(file="output/WGCNA/mono_blood/genesPerModule_barPlot_PAM.pdf",width = 12,height=6)
+pdf(file="output/WGCNA/mono_blood/genesPerModule_barPlot_noPAM.pdf",width = 12,height=6)
 print(ggplot(data=modlengths,aes(y=n,x=module))+
         geom_bar(aes(fill=module),stat="identity",show.legend = F)+
         scale_fill_manual(values=modlengths$hex[order(modlengths$n)])+
@@ -116,3 +116,7 @@ print(ggplot(data=modlengths,aes(y=n,x=module))+
         labs(y="# of genes",x="Module",title = "Number of genes per module")+
         theme(axis.text.x=element_text(angle = -45, hjust = 0)))
 dev.off()
+
+
+
+

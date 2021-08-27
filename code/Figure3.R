@@ -57,7 +57,7 @@ for (pheno in phenos_to_plot) {
   genes_toplot <- genes_toplot_df$hugo[1:20]
   
   if (pheno==last(phenos_to_plot)) {
-    extralayer <- annotate("text",x=xmids,y=-6,label=c(1:22,"X","MT"),size=3)
+    extralayer <- annotate("text",x=xmids,y=-8,label=c(1:22,"X","MT"),size=2)
   } else {
     extralayer <- geom_blank()
   }
@@ -73,22 +73,21 @@ for (pheno in phenos_to_plot) {
              alpha=0.2)+
     extralayer +
     theme_classic()+
-    geom_hline(yintercept = -log(0.05,base=10),col="orange",lty=2,size=0.5)+
-    geom_hline(yintercept = log(0.05,base=10),col="orange",lty=2,size=0.5)+
+    geom_hline(yintercept = -log(0.05,base=10),col="orange",lty=2,size=0.4)+
+    geom_hline(yintercept = log(0.05,base=10),col="orange",lty=2,size=0.4)+
     geom_hline(yintercept =0,col="blue",size=1)+
     geom_text_repel(data=subset(z,hugo %in% genes_toplot),
                     aes(label=paste0("italic(",hugo,")")),
                         size=2.3,
                         parse=TRUE)+
-    labs(title=pheno)+
+    labs(subtitle=gsub("_"," ",pheno))+
     theme(axis.line=element_blank(),
           axis.text.x=element_blank(),
           axis.ticks.x = element_blank(),
           axis.title.x = element_blank(),
           axis.title.y = element_blank())
 }
-
-
+tiff("paper/figures/Fig3_manhattanplots.tif",h=9,w=8,units = "in",res = 300)
 plot_grid(plotlist[[1]],
           plotlist[[2]],
           plotlist[[3]],
@@ -96,6 +95,7 @@ plot_grid(plotlist[[1]],
           plotlist[[5]],
           plotlist[[6]],
           ncol=1)
+dev.off()
 
 
 

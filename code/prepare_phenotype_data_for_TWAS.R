@@ -56,6 +56,7 @@ longlist <- lapply(unique(drawvisit$projid), function(x){
 })
 
 newdat <- do.call(rbind,longlist)
+
 newdatsub <- newdat #newdat[,c(1,42:48)] # keep all variables for "_at_draw"
 names(newdatsub)[-1] <- paste0(names(newdatsub)[-1],"_at_draw")
 

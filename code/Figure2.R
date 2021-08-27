@@ -4,6 +4,7 @@ library(ggsci)
 library(ggpubr)
 library(ggthemes)
 library(ggrepel)
+library(SuperExactTest)
 
 ### read TWAS results
 ttall_unlabelled <- readRDS("output/all_TWAS_results.rds")

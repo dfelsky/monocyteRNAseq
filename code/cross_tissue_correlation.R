@@ -432,4 +432,5 @@ pdf(file="paper/figures/Fig1_beeswarmplots.pdf",w=6,h=3)
 print(plot_grid(plotmono,plotxqtl,plotgtex,nrow=1))
 dev.off()
 
+pairwise.wilcox.test(alleqtl$x_p,alleqtl$cor_sig,p.adjust.method = "bonferroni")
 

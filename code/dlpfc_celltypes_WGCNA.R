@@ -71,16 +71,16 @@ net <- blockwiseModules(datExpr = datExpr,
                          detectCutHeight = 0.995,
                          saveTOMs = T,
                          saveTOMFileBase = "dlpfc_signed_signed_minKMEtoStay03_noPAM_celltypes",
-                         pamStage = F,
+                         pamStage = T,loadTOM = T,
                          pamRespectsDendro = F,
                          networkType = "signed",
                          verbose = 10)
 setwd("/Users/dfelsky/Documents/monocyteRNAseq")
 
-saveRDS(net,"output/WGCNA/dlpfc/net_noPAM_celltypes.rds")
-net <- readRDS("output/WGCNA/dlpfc/net_noPAM_celltypes.rds")
+saveRDS(net,"output/WGCNA/dlpfc/net_PAM_celltypes.rds")
+net <- readRDS("output/WGCNA/dlpfc/net_PAM_celltypes.rds")
 
-pdf(file="output/WGCNA/dlpfc/geneDendrogram_celltypes.pdf", width = 12, height = 9)
+pdf(file="output/WGCNA/dlpfc/geneDendrogram_PAM_celltypes.pdf", width = 12, height = 9)
 plotDendroAndColors(net$dendrograms[[1]],
                     net$colors,
                     "Dynamic Tree Cut",
@@ -97,7 +97,7 @@ modlengths$hex <- col2hex(modlengths$module)
 modlengths$module <- factor(modlengths$module,levels=modlengths$module[order(modlengths$n)])
 modlengths <- subset(modlengths, module %nin% "grey")
 
-pdf(file="output/WGCNA/dlpfc/genesPerModule_barPlot_celltypes.pdf",width = 12,height=6)
+pdf(file="output/WGCNA/dlpfc/genesPerModule_barPlot_PAM_celltypes.pdf",width = 12,height=6)
 print(ggplot(data=modlengths,aes(y=n,x=module))+
         geom_bar(aes(fill=module),stat="identity",show.legend = F)+
         scale_fill_manual(values=modlengths$hex[order(modlengths$n)])+
@@ -106,3 +106,16 @@ print(ggplot(data=modlengths,aes(y=n,x=module))+
         theme(axis.text.x=element_text(angle = -45, hjust = 0)))
 dev.off()
 
+
+########## plot for figure 4
+net <- readRDS("output/WGCNA/dlpfc/net_PAM_celltypes.rds")
+
+tiff("paper/figures/Figure4_dendrogram_dlpfc_PAM.tif",w=4,h=3,units="in",res=600)
+plotDendroAndColors(net$dendrograms[[1]],
+                    net$colors,
+                    dendroLabels = FALSE,
+                    hang = 0.02,
+                    addGuide = F,
+                    guideHang = 0.05,
+                    main = "DLPFC")
+dev.off()

@@ -10,8 +10,8 @@ library(ggsci)
 library(gplots)
 library(Hmisc)
 
-load("output/WGCNA/mono_blood/mono_blood_signed_signed_minKMEtoStay03_noPAM-block.1.RData")
-net <- readRDS("output/WGCNA/mono_blood/net_noPAM.rds")
+load("output/WGCNA/mono/mono_signed-block.1.RData")
+net <- readRDS("output/WGCNA/mono/net_PAM.rds")
 
 TOM <- as.matrix(TOM)
 dimnames(TOM) <- list(names(net$colors),names(net$colors))
@@ -42,12 +42,14 @@ uhex <-  col2hex(ucols)
 colpal <- uhex
 names(colpal) <- ucols
 
+tiff(filename="paper/figures/Fig4_network.tif",w=8,h=8,units = "in",res=600)
 ggplot(n, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_edges(size=0.05,curvature=0,col="grey85",show.legend = F) +
   geom_nodes(aes(colour=module)) +
   scale_size_continuous(range=c(0.1,3))+
   scale_colour_manual(values=colpal)+
-  theme_blank()
+  theme_blank()+
+  theme(legend.position = "none")
+dev.off()
 
-
-saveRDS(list(n=n,colpal=colpal),file="output/WGCNA/mono_blood/networkplot_objects.rds")
+saveRDS(list(n=n,colpal=colpal),file="output/WGCNA/mono/networkplot_objects.rds")
