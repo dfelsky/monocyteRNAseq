@@ -153,3 +153,16 @@ ttall_widel <- merge(ttall_widel,ttdcwidel,by=c("gene","hugo","location","chr"),
 
 saveRDS(ttall_widel,"output/all_TWAS_results_wideformat_labelled.rds")
 
+########### save name reference dataframe
+ttall <- readRDS("output/all_TWAS_results.rds")
+
+pathnames <- c("Neuritic plaques","Diffuse plaques","Total AB","PHF tau","NFT","Gross cerebral infarcts","Micro cerebral infarcts","Arteriolosclerosis","Cerebral AA","Cerebral atherosclerosis","Lewy body stage","Hippocampal sclerosis","TDP-43","PD Dx","Patho AD","PAM VM Caudate","PAM post. putamen","PAM IT","PAM MF")
+cognames <- c("Episodic memory","Perceptual orientation","Perceptual speed","Semantic memory","Working memory","Global","MMSE")
+
+nameref <- data.frame(mono.variable=names(ttall$monocyte_blood),
+                      dlpfc.variable=names(ttall$dlpfc_cells),
+                      varnames=c(pathnames,cognames),
+                      varnames2=c(pathnames2,cognames2))
+
+saveRDS(nameref,file="output/variable_name_reference.rds")
+

@@ -319,3 +319,32 @@ plot_grid(hplotlist$monocyte_blood,hplotlist$dlpfc,nrow=1,rel_widths = c(1,2))
 dev.off()
 
 
+########## WHERE ARE SIG GENES IN MODULES?
+################ plot distribution of significant effect genes in gene modules (kME?)
+alltt <- readRDS("output/all_TWAS_results_wideformat.rds")
+net <- readRDS("output/WGCNA/mono/net_PAM.rds")
+mono <- readRDS("output/WGCNA/mono/input_datExpr.rds")
+modlist <- data.frame(module=net$colors,gene=names(net$colors))
+
+allkme <- WGCNA::signedKME(mono,net$MEs,corFnc="bicor",corOptions="maxPOutliers=0.05")
+allkme$gene <- rownames(allkme)
+
+allinfo <- merge(alltt,allkme,by="gene",all.y=T)
+allinfo <- merge(allinfo,modlist,by="gene")
+
+subset(allinfo, module=="tan") %>%
+ggplot(aes(y=kMEtan,x=-log10(MONO_BLOOD_P.Value_mf3123)*sign(MONO_BLOOD_t_mf3123)))+
+  geom_point()+
+  theme_minimal()
+
+
+
+mfgenes <- alltt$gene[which(alltt$MONO_BLOOD_adj.P.Val_mf3123<0.05)]
+
+cormat <- rcorr(mono[,mfgenes])
+rmat <- reshape2::melt(cormat$r)
+names(rmat)[3] <- "r"
+pmat <- reshape2::melt(cormat$P)
+names(pmat)[3] <- "p"
+allmat <- cbind(rmat,pmat)
+

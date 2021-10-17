@@ -10,7 +10,7 @@ library(reshape2)
 library(rms)
 library(cowplot)
 library(VennDiagram)
-library(RColorBrewer)
+library(SuperExactTest)
 
 load("input/all_genes_ensembl.RData")
 
@@ -144,6 +144,67 @@ dev.off()
 
 treemapPlot(processed_allenrich_results$pos_p$reducedTerms)
 treemapPlot(processed_allenrich_results$neg_p$reducedTerms)
+
+
+############################### NEW ENRICHMENT clusterProfiler and Network plot
+ats <- allinfo.both[order(allinfo.both$cor_r_blood,decreasing=T),]
+
+geneList <- ats$cor_r_blood
+names(geneList) <- ats$gene
+forgo <- mapIds(org.Hs.eg.db,
+                keys=names(geneList), 
+                column="ENTREZID",
+                keytype="ENSEMBL",
+                multiVals="first")
+names(geneList) <- forgo
+geneList <- geneList[!duplicated(names(geneList))]
+
+ego <- gseGO(geneList     = geneList,
+             OrgDb        = org.Hs.eg.db,
+             ont          = "BP",
+             minGSSize    = 20,
+             maxGSSize    = 300,
+             pvalueCutoff = 0.05,
+             eps=0,
+             verbose      = TRUE)
+
+egor <- setReadable(ego, OrgDb = org.Hs.eg.db, keyType="ENTREZID")
+egodf <- as.data.frame(egor)
+
+ctr  <- lapply(list("up","down"), function(updown) {
+  if (updown=="up") {
+    y <- subset(egodf, NES > 0)
+  } else {
+    y <- subset(egodf, NES < 0)
+  }
+  
+  if (nrow(y) < 2) {
+    return(y)
+  } else {
+    
+    simMatrix <- calculateSimMatrix(y$ID,
+                                    orgdb="org.Hs.eg.db",
+                                    ont="BP",
+                                    method="Rel")
+    scores <- setNames(-log10(y$pvalue), y$ID)
+    reducedTerms <- reduceSimMatrix(simMatrix,
+                                    scores,
+                                    threshold=0.8,
+                                    orgdb="org.Hs.eg.db")
+    
+    keepIDs <- unique(reducedTerms$parentTerm)
+    return(subset(y, Description %in% keepIDs))
+  }
+})
+
+ctrdf <- do.call(rbind,ctr)
+
+#pdf("paper/figures/enrichment_rankGSEAplot_for_crosstissue_correlation.pdf")
+gseaplot2(egor,geneSetID = ctrdf$ID)
+
+
+################################################################
+################################################################
 
 ##### perform permutation for cross-tissue correlation
 library(doParallel)
@@ -340,9 +401,8 @@ venn.diagram(list(gqtls,xqtls,mqtls),
 
 ### cross-tabs to show correlations
 
-fisher.test(ftable(data=alleqtl, cor_sig ~ x_sig))
-fisher.test(ftable(data=alleqtl, cor_sig ~ g_sig))
-fisher.test(ftable(data=alleqtl, cor_sig ~ m_sig))
+overlaptest <- supertest(list("GTEx (BA9)"=gqtls,"xQTLserve DLPFC"=xqtls,mono=mqtls),n=nrow(alleqtl))
+plot(overlaptest,Layout="landscape",sort="p-value",degree=c(2,3))
 
 
 

@@ -1,4 +1,4 @@
-# construct WGCNA network in steps
+# construct WGCNA network
 library(WGCNA)
 library(rms)
 library(limma)
@@ -117,45 +117,3 @@ print(ggplot(data=modlengths,aes(y=n,x=module))+
         theme(axis.text.x=element_text(angle = -45, hjust = 0)))
 dev.off()
 
-###### for figure 4
-tiff("paper/figures/Figure4_dendrogram_mono_PAM.tif",w=4,h=3,units="in",res=600)
-plotDendroAndColors(net$dendrograms[[1]],
-                    net$colors,
-                    dendroLabels = FALSE,
-                    hang = 0.02,
-                    addGuide = F,
-                    guideHang = 0.05,
-                    main = "Monocytes")
-dev.off()
-
-
-#### get hubgenes
-datExpr <- readRDS("output/WGCNA/mono/input_datExpr.rds")
-net <- readRDS("output/WGCNA/mono/net_PAM.rds")
-
-hubgenesmono <- chooseTopHubInEachModule(datExpr = datExpr,
-                         net$colors,
-                         power = 8,
-                         type = "signed",
-                         options(corType = "bicor",maxPOutliers=0.05))
-
-
-hubdf <- data.frame(module=names(hubgenesmono),hub=all_genes$external_gene_name[match(hubgenesmono,all_genes$ensembl_gene_id)])
-hubdf$n <- as.numeric(table(net_mono$colors))
-hubdf$hex <- col2hex(hubdf$module)
-hubdf$value <- 1
-hubdf <- subset(hubdf, module %nin% "grey")
-
-hexindex <- hubdf$hex
-names(hexindex) <- hubdf$module
-
-hubdf$hub <- factor(hubdf$hub,levels=hubdf$hub[order(hubdf$n,decreasing = T)])
-
-pdf("paper/figures/Fig4_monocyte_module_barchart_and_hubgenes.pdf",w=5.5,h=2.8)
-ggplot(data=hubdf,aes(x=n,y=hub,fill=module))+
-  geom_bar(stat="identity",show.legend = F)+
-  geom_text(aes(label=module),nudge_x = 100)+
-  scale_fill_manual(values=hexindex)+
-  labs(y="Hub gene",x="Number of Genes")+
-  theme_classic()
-dev.off()
