@@ -40,7 +40,7 @@ plot.msets(mono_pam_overlap,
            Layout="landscape",
            keep.empty.intersections=F,
            sort.by="size",
-           show.elements = T,
+           show.elements = F,
            margin = c(0.5,5,8,2))
 
 mono_mfpca <- prcomp(scale(mono_expr[,mono_mf3123_genes]))
@@ -49,6 +49,7 @@ fviz_screeplot(mono_mfpca)
 
 groups <- as.factor(pheno_mono$pathoAD)
 fviz_pca_var(mono_mfpca)
+
 
 #################################################
 ### overlap of dlpfc genes for PAM phenotypes ###
@@ -67,7 +68,7 @@ plot.msets(dlpfc_pam_overlap,
            Layout="landscape",
            keep.empty.intersections=F,
            sort.by="size",
-           show.elements = T,
+           show.elements = F,
            margin = c(0.5,5,8,2))
 
 dlpfc_mfpca <- prcomp(scale(dlpfc_expr[,dlpfc_mf3123_genes]))
@@ -111,6 +112,7 @@ ggplot(data=bms,aes(y=y,x=x,fill=cor))+
   theme(axis.text.x = element_text(angle = 45, vjust = 1, 
                                    size = 12, hjust = 1))+
   coord_fixed()
+
 
 ##### YIELDS PC30 (mono) --> PC2/PC3 (dlpfc), PC9 (mono) --> PC5 (dlpfc)
 # block 1
@@ -378,7 +380,9 @@ pvalid <- ggplot(subset(resmelt,variable %nin% c("genes","PC")),aes(y=value,x=it
   labs(title="Bootstrapped R2 (b=100)",y="Boot R2",x="Number of genes/PCs in model")+
   theme_minimal()
 
-plot_grid(pr2,pvalid,nrow=2)
+pdf("paper/figures/Fig5_PC_and_gene_modelling_bootstrap_predictor.pdf",w=10,h=6)
+print(plot_grid(pr2,pvalid,nrow=2))
+dev.off()
 
 
 ### for DLPFC optimal MF model is top 2 PCs
