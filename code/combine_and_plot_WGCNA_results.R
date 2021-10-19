@@ -119,10 +119,6 @@ dev.off()
 ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
 load("/Users/dfelsky/Documents/data/all_genes_ensembl.RData")
 
-###############################
-###############################
-###############################
-### trait-ME associations
 MEm <- net_mono$MEs
 names(MEm) <- paste0("mono_",names(MEm))
 MEm$projid <- rownames(net_mono$MEs)
@@ -137,6 +133,10 @@ dge_filtered <- readRDS("input/monocytes_filtered_only.rds")
 RM <- merge(ROSmaster,dge_filtered$samples[,c("projid","age_draw")],by="projid",all.x=T)
 
 md <- merge(MEboth,RM,by="projid",all.x=T)
+
+#test
+md$smoke <- md$smoking
+md$smoke[which(md$smoke==2)] <- NA
 
 ####################################
 ####################################
@@ -153,7 +153,7 @@ covars.mono.cognition.blood <- c("msex","age_draw","educ","hemoglbn_at_draw","mc
 covars.dlpfc.pathology <- c("msex","pmi","age_death")
 covars.dlpfc.cognition <- c("educ","msex","age_death","age_at_visit_at_lastvisit")
 
-indepvec.pathology <- c("plaq_n_sqrt","plaq_d_sqrt","amyloid_sqrt","tangles_sqrt","nft_sqrt","ci_num2_gct","ci_num2_mct","arteriol_scler","caa_4gp","cvda_4gp2","dlbdx","hspath_any","tdp_stage4","parkdx","pathoAD","vm3123","pput3123","it3123","mf3123") 
+indepvec.pathology <- c("plaq_n_sqrt","plaq_d_sqrt","amyloid_sqrt","tangles_sqrt","nft_sqrt","ci_num2_gct","ci_num2_mct","arteriol_scler","caa_4gp","cvda_4gp2","dlbdx","hspath_any","tdp_stage4","parkdx","pathoAD","vm3123","pput3123","it3123","mf3123","alcohol_g_bl") 
 
 indepvec.mono.cognition <- grep("cogn|mmse30",grep("at_draw",names(ROSmaster),value=T),value=T)
 indepvec.dlpfc.cognition <- grep("cogn|mmse30",grep("lastvisit",names(ROSmaster),value=T),value=T)
@@ -335,7 +335,14 @@ allinfo <- merge(allinfo,modlist,by="gene")
 subset(allinfo, module=="tan") %>%
 ggplot(aes(y=kMEtan,x=-log10(MONO_BLOOD_P.Value_mf3123)*sign(MONO_BLOOD_t_mf3123)))+
   geom_point()+
+  geom_smooth(method="lm")+
   theme_minimal()
+
+# try chi-squared test for yes/no significant for MF3123, stratified by module
+
+
+
+
 
 
 
@@ -348,3 +355,50 @@ pmat <- reshape2::melt(cormat$P)
 names(pmat)[3] <- "p"
 allmat <- cbind(rmat,pmat)
 
+
+#######
+library(SuperExactTest)
+library(reshape2)
+library(ggpubr)
+library(ggthemes)
+library(ggsci)
+
+siggenes <- lapply(ttall_unlabelled$monocyte_blood, function(patho) {
+    patho$gene[which(patho$adj.P.Val < 0.05)]
+})
+
+moddefs <- lapply(unique(net$colors), function(mod) {
+  names(net$colors[which(net$colors==mod)])
+})
+names(moddefs) <- unique(net$colors)
+
+
+hyperp <- lapply(siggenes, function(patho){
+  unlist(lapply(moddefs, function(module){
+    testlist <- list(patho,module)
+    supres <- supertest(testlist,n=length(net$colors))
+    as.numeric(supres$P.value["11"])
+  }))
+})
+
+hypero <- lapply(siggenes, function(patho){
+  unlist(lapply(moddefs, function(module){
+    testlist <- list(patho,module)
+    supres <- supertest(testlist,n=length(net$colors))
+    as.numeric(supres$overlap.sizes["11"])
+  }))
+})
+
+hyperp2 <- do.call(rbind,hyperp)
+hypero2 <- do.call(rbind,hypero)
+
+hyperp3 <- reshape2::melt(hyperp2,value.name = "p")
+hypero3 <- reshape2::melt(hypero2,value.name = "overlap")
+
+hyperall <- merge(hyperp3,hypero3,by=c("Var1","Var2"))
+
+ggplot(data=hyperall, aes(y=Var1,x=Var2,fill=-log10(p)))+
+  geom_tile()+
+  scale_fill_continuous_tableau()+
+  geom_text(data=subset(hyperall, p<0.01),aes(label=overlap),size=2)+
+  theme_clean()

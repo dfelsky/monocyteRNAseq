@@ -134,7 +134,7 @@ treemapPlot(reducedTerms)
 ########################################################################
 ########################################################################
 #### DOSE and clusterProfiler version 
-### below is underdeveloped - used for rank-based GSEA, which is inot implemented in gprofiler. This analysis is likely unnecessary since the enrichment of significant FDR<0.05 gene sets with gprofiler should suffice. Also gprofiler interface is better for looking at a multitude of reference ontologies/gene sets.
+### below is underdeveloped - used for rank-based GSEA, which is not implemented in gprofiler. This analysis is likely unnecessary since the enrichment of significant FDR<0.05 gene sets with gprofiler should suffice. Also gprofiler interface is better for looking at a multitude of reference ontologies/gene sets.
 #### module enrichment #####
 ###### overrepresentation
 ####
@@ -385,8 +385,6 @@ ggplot(n, aes(x = x, y = y, xend = xend, yend = yend)) +
   labs(title = "GSEA rank enrichment, BP, rrvgo simplified, 0.8")+
   theme(legend.position = "none")
 #dev.off()
-
-
 
 
 testcast <- reshape2::dcast(data=dfr,formula = pheno ~ Description,value.var = "NES")
