@@ -405,11 +405,6 @@ overlaptest <- supertest(list("GTEx (BA9)"=gqtls,"xQTLserve DLPFC"=xqtls,mono=mq
 plot(overlaptest,Layout="landscape",sort="p-value",degree=c(2,3))
 
 
-
-
-
-
-
 ####################################
 eqtl_plot_1 <- ggplot(data=alleqtl, aes(x=cor_r,y=abs(slope.Brain_Frontal_Cortex_BA9/slope_se.Brain_Frontal_Cortex_BA9),fill=cor_sig))+
   geom_point(aes(col=cor_sig))+
