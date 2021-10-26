@@ -374,7 +374,7 @@ n$GO_names[duplicated(n$GO_names)] <- NA
 #pdf("paper/figures/TWAS_results_enrichment_GSEA_network.pdf",w=12,h=12)
 ggplot(n, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_edges(aes(size=-log(p.adjust),col=updown),
-             curvature=0.05,
+             curvature=0,
              show.legend = T) +
   geom_nodes(aes(col=node_category, size=node_size*100)) +
   geom_label(data=subset(n, node_category=="pheno"),aes(label=pheno_names))+
@@ -393,16 +393,18 @@ testcast$pheno <- NULL
 testcast[is.na(testcast)] <- 0
 testhm <- heatmap(as.matrix(testcast))
 
+nameref <- readRDS("output/variable_name_reference.rds")
 
 dfr_plot <- dfr
-dfr_plot$phenof <- factor(dfr_plot$pheno,levels=rownames(testcast)[testhm$rowInd])
+dfr_plot$phenof <- factor(dfr_plot$pheno,levels=rownames(testcast)[testhm$rowInd],labels=nameref$varnames[match(rownames(testcast)[testhm$rowInd],nameref$mono.variable)])
 dfr_plot$Descf <- factor(dfr_plot$Description,levels=colnames(testcast)[testhm$colInd])
 
-pdf("paper/figures/TWAS_results_enrichment_GSEA_onlytopNES2_heatmap.pdf",w=12,h=12)
+tiff("paper/supp_figures/SuppFig2_TWAS_results_enrichment_GSEA_onlytopNES2_heatmap.tif",w=10,h=10,units="in",res = 200)
 subset(dfr_plot, NES > 2 | NES < -2) %>%
 ggplot(aes(x=phenof,y=Descf,fill=NES))+
   geom_tile()+
   scale_fill_gradient2_tableau()+
   theme_minimal()+
+  labs(y="GO biological process",x="Phenotype")+
   theme(axis.text.x=element_text(angle = -45, hjust = 0))
 dev.off()

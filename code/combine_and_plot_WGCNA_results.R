@@ -81,7 +81,7 @@ plotdat_sub$DLPFC <- factor(x = plotdat_sub$DLPFC,
                          levels = unique(colorh2)[egene.order], 
                          ordered = TRUE)
 
-pdf("paper/figures/Fig4_overlap_heatmap.pdf",w=8,h=3)
+tiff("paper/supp_figures/SuppFig3_overlap_heatmap.tif",w=8,h=3,units="in",res=300)
 ggplot(data=plotdat_sub,aes(y=Monocyte,x=DLPFC,fill=-log10(pvalue)))+
   geom_tile()+
   scale_fill_gradient(low = "white",high="red")+
@@ -153,7 +153,7 @@ covars.mono.cognition.blood <- c("msex","age_draw","educ","hemoglbn_at_draw","mc
 covars.dlpfc.pathology <- c("msex","pmi","age_death")
 covars.dlpfc.cognition <- c("educ","msex","age_death","age_at_visit_at_lastvisit")
 
-indepvec.pathology <- c("plaq_n_sqrt","plaq_d_sqrt","amyloid_sqrt","tangles_sqrt","nft_sqrt","ci_num2_gct","ci_num2_mct","arteriol_scler","caa_4gp","cvda_4gp2","dlbdx","hspath_any","tdp_stage4","parkdx","pathoAD","vm3123","pput3123","it3123","mf3123","alcohol_g_bl") 
+indepvec.pathology <- c("plaq_n_sqrt","plaq_d_sqrt","amyloid_sqrt","tangles_sqrt","nft_sqrt","ci_num2_gct","ci_num2_mct","arteriol_scler","caa_4gp","cvda_4gp2","dlbdx","hspath_any","tdp_stage4","parkdx","pathoAD","vm3123","pput3123","it3123","mf3123") 
 
 indepvec.mono.cognition <- grep("cogn|mmse30",grep("at_draw",names(ROSmaster),value=T),value=T)
 indepvec.dlpfc.cognition <- grep("cogn|mmse30",grep("lastvisit",names(ROSmaster),value=T),value=T)
@@ -479,6 +479,6 @@ pdlpfc <- ggplot(data=subset(alldatdlpfc2,module!="grey"), aes(x=pc1,y=DLPFC_cel
   theme_minimal()
 
 
-tiff(file="paper/figures/Supplementary_module-trait_lackofassociation_PC1_tstat_correlation_plots_MFPAM_NFT.tif",w=20,h=10,units="in",res=300)
+tiff(file="paper/supp_figures/SuppFig4_module-trait_lackofassociation_PC1_tstat_correlation_plots_MFPAM_NFT.tif",w=20,h=10,units="in",res=300)
 print(plot_grid(pmono,pdlpfc))
 dev.off()

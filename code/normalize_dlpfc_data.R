@@ -110,7 +110,7 @@ techvars <- c("PF_READS","PF_READS_ALIGNED","PCT_PF_READS_ALIGNED","PCT_RIBOSOMA
 corMatrix <- getCorrelations(dge_filtered$samples,
                              x=covars, 
                              y=covars)
-pdf("paper/figures/DLPFC_covariate_correlations.pdf",w=8,h=8)
+tiff("paper/supp_figures/SuppFig6_DLPFC_covariate_correlations.tif",w=8,h=8,units="in",res=300)
 ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=6,sig.level = 0.05,lab = T,lab_size = 2,title=paste0("DLPFC, n=",nrow(dge_filtered$samples)))
 dev.off()
 
@@ -119,7 +119,7 @@ pcs <- getPCs.dge(dge_filtered, n = 20)
 corMatrix <- getCorrelations(cbind(dge_filtered$samples, pcs),
                              x=covars, 
                              y=colnames(pcs))
-pdf("paper/figures/DLPFC_covariate_PC_effects.pdf",w=8,h=8)
+tiff("paper/supp_figures/SuppFig8_DLPFC_covariate_PC_effects.tif",w=8,h=8,units="in",res=300)
 ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7,sig.level = 0.05,lab = T,lab_size = 2,title=paste0("DLPFC, n=",nrow(dge_filtered$samples)))
 dev.off()
 
@@ -156,7 +156,8 @@ pcs <- getPCs.matrix(resids.agesex, n=20)
 corMatrix <- getCorrelations(cbind(dge_filtered$samples, pcs),
                              x=covars, 
                              y=colnames(pcs))
-pdf("paper/figures/DLPFC_covariate_PC_effects_aftercorrection.pdf",w=8,h=8)
+
+tiff("paper/supp_figures/DLPFC_covariate_PC_effects_aftercorrection.tif",w=8,h=8,units="in",res=300)
 ggcorrplot(corr=corMatrix$c, p.mat=corMatrix$p, tl.cex=7,sig.level = 0.05,lab = T,lab_size = 2,title=paste0("DLPFC, n=",nrow(dge_filtered$samples)))
 dev.off()
 

@@ -102,6 +102,8 @@ allenrich_results <- list(pos_fdr=raw_r_enrich_pos_fdr,
                           neg_fdr=raw_r_enrich_neg_fdr,
                           neg_p=raw_r_enrich_neg_raw)
 
+saveRDS(allenrich_results,file="output/cross_tissue_correlation_pool_enrichment_results_gprofiler.rds")
+
 processed_allenrich_results <- lapply(allenrich_results[c(1,2,4)], function(res) {
 go_r_enrich <- subset(res$result, res$result$source %in% c("GO:BP"))
 simMatrix <- calculateSimMatrix(go_r_enrich$term_id,

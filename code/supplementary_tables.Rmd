@@ -1,0 +1,87 @@
+---
+title: "Generate Supplementary Tables"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "/Users/dfelsky/Documents/monocyteRNAseq")
+```
+
+```{r}
+library(rms)
+library(arsenal)
+```
+
+1. Supplementary Table 1. Subject Demographics
+Note that this chunk needs to be executed and the knitted latex table needs to be copy and pasted into notebook and then into excel.
+
+```{r}
+mono <- readRDS("input/monocytes_techandagesex_residuals.rds")
+removesubs.mono <- c("00246264","35072859","91804757","21135680","69866926","50303145")
+mono <- mono[,which(colnames(mono) %nin% removesubs.mono)]
+monov <- readRDS("input/monocytes_v.rds")
+ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
+
+subjects <- colnames(mono)
+
+demo <- monov$targets[which(monov$targets$projid %in% subjects),]
+demo <- merge(demo,ROSmaster,by=c("projid","msex","age_bl","study"),all.x=T)
+
+demo <- within(demo,{
+  `Sequencing Batch` <- factor(batch,levels=c("batch1","batch2"),labels=c("Batch 1","Batch 2")) 
+  `Age at blood draw, yrs` <- age_draw
+  `Age at study entry, yrs` <- age_bl
+  `Age at death, yrs` <- age_death
+  `Postmortem interval` <- pmi
+  `Pathological AD` <- factor(pathoAD, levels=c(0,1),labels=c("yes","no"))
+  Sex <- factor(msex,levels=c(0,1),labels=c("F","M"))
+  `Library Size, millions` <- ESTIMATED_LIBRARY_SIZE/1000000
+  Study <- study
+})
+
+tb <- tableby(`Sequencing Batch` ~ Sex + `Age at blood draw, yrs` + `Age at study entry, yrs` + `Age at death, yrs` + `Pathological AD` + `Library Size, millions` + Study, data=demo)
+summary(tb)
+```
+
+2. Supplementary Table 2. Subject Demographics
+Note that this chunk needs to be executed and the knitted latex table needs to be copy and pasted into notebook and then into excel.
+
+```{r}
+crossenrich <- readRDS("output/cross_tissue_correlation_pool_enrichment_results_gprofiler.rds")
+
+ce <- lapply(crossenrich,function(x) {
+  x$result
+})
+
+cea <- do.call(rbind,ce)
+cea$query <- NULL
+cea$association_pool <- rownames(cea)
+cea$association_pool <- gsub("\\..*","",cea$association_pool)
+cea <- apply(cea,2,as.character)
+
+write.table(cea,file="paper/supp_tables/SuppTable2_cross_tissue_enrichment.tsv",row.names = F,quote=F,col.names = T,sep="\t")
+```
+
+3. Supplementary Table 3. Overrepresentation analysis of biological process for significant DE genes
+
+```{r}
+nameref <- readRDS("output/variable_name_reference.rds")
+ck1all <- readRDS("output/TWAS_enrichment_overrepClusProfiler_monocyteblood_rrvgo_simplified_08.rds")
+ck1all$pheno <- nameref$varnames[match(ck1all$pheno,nameref$mono.variable)]
+ck1all$Cluster <- NULL
+ck1all$geneID <- NULL
+write.table(ck1all,file="paper/supp_tables/SuppTable3_TWAS_overrepresentation_clusterProfiler.tsv",row.names = F,quote=F,col.names = T,sep="\t")
+```
+
+4. Supplementary Table 4. GSEA analysis for biological processes for significant DE genes ranked by t-statistics
+
+```{r}
+dfr <- readRDS("output/TWAS_enrichment_rankGSEA_monocyteblood_rrvgo_simplified_08.rds")
+dfr$pheno <- nameref$varnames[match(dfr$pheno,nameref$mono.variable)]
+
+write.table(dfr,file="paper/supp_tables/SuppTable4_TWAS_GSEA.tsv",row.names = F,quote=F,col.names = T,sep="\t")
+```
