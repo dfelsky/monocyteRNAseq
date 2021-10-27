@@ -365,7 +365,7 @@ n <- ggnetwork(edges_forplot,
 n$node_category <- ifelse(n$vertex.names %in% c(dfr$pheno), "pheno","GO")
 n$node_size<- ifelse(n$vertex.names %in% c(dfr$pheno), 5,1)
 
-GOtolabel <- names(table(dfr$Description))[which(table(dfr$Description)>1)]
+GOtolabel <- names(table(dfr$Description))[which(table(dfr$Description)==2)]
 nameref <- readRDS("output/variable_name_reference.rds")
 n$pheno_names <- nameref$varnames[match(n$vertex.names,nameref$mono.variable)]
 n$GO_names <- n$vertex.names
@@ -377,8 +377,8 @@ ggplot(n, aes(x = x, y = y, xend = xend, yend = yend)) +
              curvature=0,
              show.legend = T) +
   geom_nodes(aes(col=node_category, size=node_size*100)) +
-  geom_label(data=subset(n, node_category=="pheno"),aes(label=pheno_names))+
   geom_text_repel(data=subset(n, vertex.names %in% GOtolabel),aes(label=GO_names),size=3)+
+  geom_label(data=subset(n, node_category=="pheno"),aes(label=pheno_names))+
   scale_color_jco()+
   scale_size_continuous(range=c(0.1,3))+
   theme_blank()+
@@ -395,13 +395,42 @@ testhm <- heatmap(as.matrix(testcast))
 
 nameref <- readRDS("output/variable_name_reference.rds")
 
-dfr_plot <- dfr
-dfr_plot$phenof <- factor(dfr_plot$pheno,levels=rownames(testcast)[testhm$rowInd],labels=nameref$varnames[match(rownames(testcast)[testhm$rowInd],nameref$mono.variable)])
-dfr_plot$Descf <- factor(dfr_plot$Description,levels=colnames(testcast)[testhm$colInd])
+### heatmap showing all GO groups with at least one trait having NES > 2 or < -2. Corrected again for number of traits. 
+nesthres <- 2
+
+dfr_sub <- subset(dfr, p.adjust < 0.05/26)
+IDs_to_include <- unique(dfr_sub$ID[which(dfr_sub$NES > nesthres | dfr_sub$NES < (nesthres*-1))])
+dfr_plot <- subset(dfr_sub, ID %in% IDs_to_include)
+
+dfr_plot$phenof <- factor(dfr_plot$pheno,levels=names(sort(table(dfr_plot$pheno),decreasing = T)),labels=nameref$varnames[match(names(sort(table(dfr_plot$pheno),decreasing=T)),nameref$mono.variable)])
+dfr_plot$Descf <- factor(dfr_plot$Description,levels=names(sort(table(dfr_plot$Description),decreasing = T)))
 
 tiff("paper/supp_figures/SuppFig2_TWAS_results_enrichment_GSEA_onlytopNES2_heatmap.tif",w=10,h=10,units="in",res = 200)
-subset(dfr_plot, NES > 2 | NES < -2) %>%
-ggplot(aes(x=phenof,y=Descf,fill=NES))+
+ggplot(data=dfr_plot, aes(x=phenof,y=Descf,fill=NES))+
+  geom_tile()+
+  scale_fill_gradient2_tableau()+
+  theme_minimal()+
+  labs(y="GO biological process",x="Phenotype")+
+  theme(axis.text.x=element_text(angle = -45, hjust = 0))
+dev.off()
+
+########### parent terms
+nesthres <- 0.1
+
+dfr_sub <- subset(dfr, p.adjust < 0.05/26)
+simMatrix <- calculateSimMatrix(unique(dfr_sub$ID),orgdb="org.Hs.eg.db",ont="BP",method="Rel")
+reducedTerms <- reduceSimMatrix(simMatrix,threshold=0.8,orgdb="org.Hs.eg.db")
+
+IDs_to_include <- unique(dfr_sub$ID[which(dfr_sub$NES > nesthres | dfr_sub$NES < (nesthres*-1))])
+dfr_plot <- subset(dfr_sub, ID %in% IDs_to_include)
+
+dfr_plot$parent <- reducedTerms$parentTerm[match(dfr_plot$ID,reducedTerms$go)]
+
+dfr_plot$phenof <- factor(dfr_plot$pheno,levels=names(sort(table(dfr_plot$pheno),decreasing = T)),labels=nameref$varnames[match(names(sort(table(dfr_plot$pheno),decreasing=T)),nameref$mono.variable)])
+dfr_plot$parentf <- factor(dfr_plot$parent,levels=names(sort(table(dfr_plot$parent),decreasing = T)))
+
+tiff("paper/supp_figures/SuppFig2_TWAS_results_enrichment_GSEA_parentTerms_heatmap.tif",w=10,h=5,units="in",res = 200)
+ggplot(data=dfr_plot, aes(x=phenof,y=parentf,fill=NES))+
   geom_tile()+
   scale_fill_gradient2_tableau()+
   theme_minimal()+
