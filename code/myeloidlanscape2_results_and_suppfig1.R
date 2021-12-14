@@ -12,7 +12,11 @@ ttm <- ttall$monocyte_blood
 ttml <- do.call(rbind,ttm)[,c("pheno","gene","adj.P.Val","t")]
 
 ################## too long to run?...
-compres <- lapply(unique(fullres$test),function(test) {
+donttest <- c("niareagansc: High - Low |  {includeLowExpr}")
+
+testlist <- unique(fullres$test)[which(unique(fullres$test) %nin% donttest)]
+
+compres <- lapply(testlist,function(test) {
   print(paste0("test: ",test))
   allpheno <- lapply(unique(ttml$pheno), function(pheno) {
     print(paste0("phenotype: ",pheno))
@@ -22,70 +26,131 @@ compres <- lapply(unique(fullres$test),function(test) {
     
     df <- merge(df.tt,df.res,by.x="gene",by.y="human_ensembl_id")
     
+    ml_sig <- df$gene[which(df$pvalue<0.05)]
+    mono_sig <- df$gene[which(df$adj.P.Val < 0.05)]
+    allsets <- list(ml_sig=ml_sig,mono_sig=mono_sig)
+    
+    if(length(unlist(allsets))==0) {
+      data.frame(Intersections=NA,
+                 Degree=NA,
+                 Observed.Overlap=NA,
+                 Expected.Overlap=NA,
+                 FE=NA,
+                 P.value=NA,
+                 Elements=NA,
+                 pheno=pheno,
+                 experiment=df$experimentID[1],
+                 ngenes=nrow(df),
+                 test=test,
+                 corp=NA,
+                 corr=NA,
+                 mlup_monoup=NA,
+                 mlup_monodown=NA,
+                 mldown_monoup=NA,
+                 mldown_monodown=NA)
       
-      ml_sig_up <- df$gene[which(df$pvalue<0.05 & df$coefficient > 0)]
-      ml_sig_down <- df$gene[which(df$pvalue<0.05 & df$coefficient < 0)]
-      mono_sig_up <- df$gene[which(df$adj.P.Val < 0.05 & df$t > 0)]
-      mono_sig_down <- df$gene[which(df$adj.P.Val < 0.05 & df$t < 0)]
-      
-      # allsets <- list(ml_sig_up=ml_sig_up,
-      #                 ml_sig_down=ml_sig_down,
-      #                 mono_sig_up=mono_sig_up,
-      #                 mono_sig_down=mono_sig_down)
-      
-       allsets <- list(ml_sig=ml_sig,
-                       mono_sig=mono_sig)
-      
-      if(length(unlist(allsets))==0) {  
-        data.frame(Intersections=NA,
-                   Degree=NA,
-                   Observed.Overlap=NA,
-                   Expected.Overlap=NA,
-                   FE=NA,
-                   P.value=NA,
-                   Elements=NA,
-                   pheno=pheno,
-                   experiment=df$experimentID[1],
-                   ngenes=nrow(df),
-                   test=test)
       } else {
+        stest <- SuperExactTest::supertest(allsets,n=nrow(df))
+        sumtest <- summary(stest)$Table
+        sumtest$pheno <- pheno
+        sumtest$experiment <- df$experimentID[1]
+        sumtest$ngenes <- nrow(df)
+        sumtest$test <- test
+        
+        if (sumtest[which(sumtest$Degree==2),"P.value"] < 0.05) {
+          ctest <- cor.test(df$coefficient,df$t,method = "pearson")
+          sumtest$corp <- ctest$p.value
+          sumtest$corr <- ctest$estimate
+          
+          df$ml_sigdir <- df$coefficient
+          df$ml_sigdir[which(df$pvalue >= 0.05)] <- NA
+          df$ml_sigdir <- ifelse(df$ml_sigdir > 0,"up","down")
+          df$mono_sigdir <- df$t
+          df$mono_sigdir[which(df$adj.P.Val >= 0.05)] <- NA
+          df$mono_sigdir <- ifelse(df$mono_sigdir > 0,"up","down")
+          
+          sumtest$mlup_monoup <- table(df$mono_sigdir,df$ml_sigdir)[2,2]
+          sumtest$mlup_monodown <- table(df$mono_sigdir,df$ml_sigdir)[1,2]
+          sumtest$mldown_monoup <- table(df$mono_sigdir,df$ml_sigdir)[2,1]
+          sumtest$mldown_monodown <- table(df$mono_sigdir,df$ml_sigdir)[1,1]
 
-      
-      stest <- SuperExactTest::supertest(allsets,n=nrow(df))
-      sumtest <- summary(stest)$Table
-      # data.frame(p=sumtest["11","P.value"],
-      #            overlap=sumtest["11","Observed.Overlap"],
-      #            FE=sumtest["11","FE"],
-      #            pheno=pheno,
-      #            experiment=experiment)
-      sumtest$pheno <- pheno
-      sumtest$experiment <- experiment
-      sumtest$ngenes <- nrow(df)
-      sumtest$test <- test
-      sumtest
-      
-      }
-  })
+          
+        } else {
+          sumtest$corp <- NA
+          sumtest$corr <- NA
+          
+          sumtest$mlup_monoup <- NA
+          sumtest$mlup_monodown <- NA
+          sumtest$mldown_monoup <- NA
+          sumtest$mldown_monodown <- NA
+          
+          }
+        sumtest
+        }
+    })
   do.call(rbind,allpheno)
-})
+  })
 
-saveRDS(compres, "output/myeloidlanscape_compresults.rds")
-compres <- readRDS("output/myeloidlanscape_compresults.rds")
+
+saveRDS(compres, "output/myeloidlanscape_compresults_nodirection.rds")
+compres <- readRDS("output/myeloidlanscape_compresults_nodirection.rds")
 cres <- do.call(rbind,compres)
-cres$Elements <- NULL
 cres <- subset(cres,Degree == 2)
+cres$Elements <- NULL
+
 #cres <- subset(cres, Intersections %in% c("ml_sig_up & mono_sig_up","ml_sig_down & mono_sig_down"))
 
-cres2 <- cres[complete.cases(cres),]
+cres2 <- cres[complete.cases(cres),] # this subsets for p<0.05 automatically
+cres2$label <- paste0(cres2$experiment," ... ",cres2$test)
+cres2 <- subset(cres2, P.value < 0.05)
 
-subset(cres2, P.value < 0.05) %>%
-  ggplot(aes(y=test,x=pheno,fill=FE))+
-  scale_fill_gradient_tableau()+
-  geom_tile()+
-  geom_text(aes(label=Observed.Overlap))+
-  facet_wrap(~Intersections)+
+library(scatterpie)
+
+# subset(cres2, P.value < 0.05) %>%
+#   ggplot(aes(y=label,x=pheno,fill=FE))+
+#   scale_fill_gradient_tableau()+
+#   geom_tile()+
+#   geom_text(aes(label=signif(corr,3)))+
+#   facet_wrap(~Intersections)+
+#   theme_minimal()+
+#   theme(axis.text.x=element_text(angle = -45, hjust = 0))
+
+cres2$label_num <- as.numeric(as.factor(cres2$label))
+cres2$pheno_num <- as.numeric(as.factor(cres2$pheno))
+
+phenoindex <- cres2$pheno_num
+names(phenoindex) <- nameref$varnames[match(cres2$pheno,nameref$mono.variable)]
+phenoindex <- phenoindex[!duplicated(phenoindex)]
+
+labelindex <- cres2$label_num
+names(labelindex) <- cres2$label
+labelindex <- labelindex[!duplicated(labelindex)]
+
+tiff(filename = "paper/supp_figures/SuppFig1_myeloidlandscape_scatterpie.tif",res = 300,units = "in",w=15,h=15)
+ggplot(data=cres2,aes(y=label_num,x=pheno_num))+
+  geom_scatterpie(aes(y=label_num,x=pheno_num),data=cres2,cols=names(cres2)[13:16],pie_scale = 2,color=NA)+
+  scale_fill_few()+
+  coord_equal()+
+  geom_text(aes(label=Observed.Overlap),size=2)+
+  scale_y_continuous(breaks=seq(1,length(unique(cres2$label_num))),labels=names(labelindex)[match(seq(1,length(unique(cres2$label_num))),labelindex)])+
+  scale_x_continuous(breaks=seq(1,length(unique(cres2$pheno_num))),labels=names(phenoindex)[match(seq(1,length(unique(cres2$pheno_num))),phenoindex)])+
   theme_minimal()+
+  labs(y="Experiment...contrast",x="Phenotype")+
   theme(axis.text.x=element_text(angle = -45, hjust = 0))
+dev.off()
+
+pdf("paper/supp_figures/SuppFig1_myeloidlandscape_scatterpie.pdf",w=15,h=15)
+ggplot(data=cres2,aes(y=label_num,x=pheno_num))+
+  geom_scatterpie(aes(y=label_num,x=pheno_num),data=cres2,cols=names(cres2)[13:16],pie_scale = 2,color=NA)+
+  scale_fill_few()+
+  coord_equal()+
+  geom_text(aes(label=Observed.Overlap),size=2)+
+  scale_y_continuous(breaks=seq(1,length(unique(cres2$label_num))),labels=names(labelindex)[match(seq(1,length(unique(cres2$label_num))),labelindex)])+
+  scale_x_continuous(breaks=seq(1,length(unique(cres2$pheno_num))),labels=names(phenoindex)[match(seq(1,length(unique(cres2$pheno_num))),phenoindex)])+
+  theme_minimal()+
+  labs(y="Experiment...contrast",x="Phenotype")+
+  theme(axis.text.x=element_text(angle = -45, hjust = 0))
+dev.off()
 
 ##############################################################################
 ########################## TRY T-STAT CORRELATIONS  INSTEAD OF PVALUE OVERLAP
