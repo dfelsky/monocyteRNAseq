@@ -14,6 +14,7 @@ ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
 mono_expr <- readRDS("output/WGCNA/mono_blood/input_datExpr.rds")
 ttall_unlabelled <- readRDS("output/all_TWAS_results.rds")
 ttm <- ttall_unlabelled$monocyte_blood
+monov <- readRDS("input/monocytes_v_blood.rds")
 
 ####################################################
 ### overlap of monocyte genes for PAM phenotypes ###
@@ -144,8 +145,8 @@ ggplot(data=resframe, aes(y=-log10(p),x=Phenotype,col=Interaction))+
   theme(axis.text.x = element_text(angle = 45, vjust = 1, size = 10, hjust = 1))
 dev.off()
 
-mm3 <- subset(mm2, cogdx %in% c(1,2,3))
-mm3$Dx <- factor(mm3$cogdx,levels=c(1,2,3),labels=c("CN","MCI","AD"))
+mm3 <- subset(mm2, Dx %in% c(1,2,3))
+mm3$Dx <- factor(mm3$Dx,levels=c(1,2,3),labels=c("CN","MCI","AD"))
 
 # individual plots for sig effects
 pdf("paper/figures/Fig5_mmse_cogdx.pdf",w=8,h=5)
