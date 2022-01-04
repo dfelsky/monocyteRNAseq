@@ -150,10 +150,10 @@ mm3$Dx <- factor(mm3$Dx,levels=c(1,2,3),labels=c("CN","MCI","AD"))
 
 # individual plots for sig effects
 pdf("paper/figures/Fig5_mmse_cogdx.pdf",w=8,h=5)
-ggplot(data=mm3, aes(y=cts_mmse30_at_draw ,x=PC1_cts_mmse30_at_draw ,col=Dx))+
+ggplot(data=mm3, aes(y=cts_mmse30_at_draw ,x=PC1_cts_mmse30_at_draw ,col=Dx,group=Dx))+
   geom_point()+
   geom_smooth(method="lm")+
-  facet_wrap(~Dx,scales="free_x")+
+  #facet_wrap(~Dx,scales="fixed")+
   labs(y="MMSE at draw",x="MMSE-related monocyte gene expression (PC1)")+
   scale_color_tableau()+
   theme_minimal()
