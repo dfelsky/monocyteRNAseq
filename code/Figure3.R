@@ -6,6 +6,7 @@ library(ggpubr)
 library(ggthemes)
 library(ggrepel)
 library(naturalsort)
+library(cowplot)
 
 ### read TWAS results
 ttall_unlabelled <- readRDS("output/all_TWAS_results.rds")
@@ -87,7 +88,7 @@ for (pheno in phenos_to_plot) {
           axis.title.x = element_blank(),
           axis.title.y = element_blank())
 }
-tiff("paper/figures/Fig3_manhattanplots.tif",h=9,w=8,units = "in",res = 300)
+tiff("paper/figures/Fig3_manhattanplots2.tif",h=9,w=8,units = "in",res = 300)
 plot_grid(plotlist[[1]],
           plotlist[[2]],
           plotlist[[3]],
