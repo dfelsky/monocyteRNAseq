@@ -1,0 +1,14 @@
+PLINK v1.90b6.21 64-bit (19 Oct 2020)
+Options in effect:
+  --bfile INPUT.txt
+  --gwas
+  --out MYGWAS.txt
+
+Hostname: DFELSKY-PC
+Working directory: C:\Users\dfelsky\Documents\monocyteRNAseq
+Start time: Fri May 06 19:24:14 2022
+
+Error: Unrecognized flag ('--gwas').
+For more information, try "plink --help <flag name>" or "plink --help | more".
+
+End time: Fri May 06 19:24:14 2022
