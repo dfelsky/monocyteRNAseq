@@ -30,7 +30,7 @@ ttdc <- ttall_labelled$dlpfc_cells
 
 index <- 1
 stestlist <- list()
-for (sigthres in c(0.05,0.1,0.2)) {
+for (sigthres in c(0.05,0.1)) { # removed 0.2 level from list for revision 1
   for (pheno in c(pathnames,cognames)) {
     ttmp <- ttm[[pheno]][commongenes,]
     ttdp <- ttdc[[pheno]][commongenes,]
@@ -70,7 +70,7 @@ setdata
 
 setdata$pheno <- factor(setdata$pheno,levels=c(pathnames,cognames))
 
-pdf("paper/figures/TWAS_result_HGoverlap_plot_monocyte_blood.pdf",h=6,w=6)
+pdf("paper/figures/Fig2_TWAS_result_HGoverlap_plot_monocyte_blood_revision1.pdf",h=6,w=6)
 ggplot(data=setdata,aes(y=-log10(p),x=pheno,col=FDR))+
   geom_point(size=5)+
   scale_color_aaas()+

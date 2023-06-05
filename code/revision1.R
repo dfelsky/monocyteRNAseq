@@ -1,6 +1,7 @@
 # reviewer comments
 # Reviewer 2, comment 1. Microglialness of correlated genes between monocyte and brain
 setwd("paper/FINAL/nature_communications/revision1/mglia_gene_sets/")
+load("Mouse_Human_GenelistDatabaseAugust2021.RData")
 
 hm1 <- subset(human.master3, groups %in% c("Microglia","Microglia Development"))
 hm2 <- subset(hm1, Species=="human")
@@ -10,7 +11,7 @@ mgliasets <- lapply(unique(hm2$listname),function(x) {
 })
 names(mgliasets) <- unique(hm2$listname)
 
-ct <- readRDS("output/cross_tissue_correlation_results.rds")
+ct <- readRDS("../../../../../output/cross_tissue_correlation_results.rds")
 ha <- read.csv("humi_aged.csv")
 
 ## custom enrichment
@@ -32,11 +33,12 @@ smt <- sm$Table[,-7]
 ssmt <- smt[which(smt$P.value<0.05),]
 ssmt[grep("mono_",ssmt$Intersections),]
 
-### degNorm
-if (!require("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
 
-# The following initializes usage of Bioc devel
-BiocManager::install(version='devel')
+#### peripheral blood biomarker analysis
+pheno_long <- read.csv("/Users/dfelsky/Documents/data/ROSMAP_phenotype_data/update_biomarkers_02142023/dataset_978_long_02-14-2023.csv",colClasses = c(projid="character"))
+pheno <- read.csv("/Users/dfelsky/Documents/data/ROSMAP_phenotype_data/update_biomarkers_02142023/dataset_978_basic_02-14-2023.csv",colClasses = c(projid="character"))
 
-BiocManager::install("DegNorm")
+biomarkers <- grep("log_",names(pheno_long))
+pheno_long2 <- subset(pheno_long, is.na(log_hcrp)==F)
+
+

@@ -6,6 +6,8 @@ library(ggthemes)
 library(ggrepel)
 library(SuperExactTest)
 
+setwd("/Users/dfelsky/Documents/monocyteRNAseq/")
+
 ### read TWAS results
 ttall_unlabelled <- readRDS("output/all_TWAS_results.rds")
 
@@ -38,7 +40,7 @@ rm1 <- melt(resmat1)
 names(rm1) <- c("tissue","pheno","FDR_10")
 
 all_rm <- merge(rm05,rm1)
-all_rm_m <- melt(all_rm,is.vars=c("tissue","pheno"))
+all_rm_m <- melt(all_rm,id.vars=c("tissue","pheno"))
 names(all_rm_m)[3] <- "siglevel"
 
 pdf("paper/figures/TWAS_results_summary.pdf",w=8,h=6)
