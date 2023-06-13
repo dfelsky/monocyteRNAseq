@@ -16,27 +16,36 @@ ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
 load("input/all_genes_ensembl.RData")
 all_genes$mid <- all_genes$start_position + abs((all_genes$end_position - all_genes$start_position)/2)
 
+# get biomarkers
+pheno_long <- read.csv("/Users/dfelsky/Documents/data/ROSMAP_phenotype_data/update_biomarkers_02142023/dataset_978_long_02-14-2023.csv",colClasses = c(projid="character"))
+pheno <- read.csv("/Users/dfelsky/Documents/data/ROSMAP_phenotype_data/update_biomarkers_02142023/dataset_978_basic_02-14-2023.csv",colClasses = c(projid="character"))
+
+biomarkers <- grep("log_",names(pheno_long),value=T)
+pheno_long2 <- subset(pheno_long, is.na(log_hcrp)==F)
+
+ROSmaster[,c(biomarkers,"age_at_visit")] <- pheno_long2[match(ROSmaster$projid,pheno_long2$projid),c(biomarkers,"age_at_visit")]
+
 ##################################
 #### set parameters for TWAS  ####
 ##################################
-outcome.category.list <- c("pathology_blood","cognition_blood","pathology","cognition")
-tissue.list <- c("monocyte","dlpfc")
+outcome.category.list <- "cognition_blood" # c("pathology_blood","cognition_blood","pathology","cognition")
+tissue.list <- "monocyte" #c("monocyte","dlpfc")
 
-techvars.mono <- c("batch","PCT_USABLE_BASES","PERCENT_DUPLICATION","MEDIAN_3PRIME_BIAS","study","PCT_PF_READS_ALIGNED","ESTIMATED_LIBRARY_SIZE")
+techvars.mono <- c("batch","PCT_USABLE_BASES","PERCENT_DUPLICATION","MEDIAN_3PRIME_BIAS","PCT_PF_READS_ALIGNED","ESTIMATED_LIBRARY_SIZE")
 techvars.dlpfc <- c("batch", "MEDIAN_CV_COVERAGE", "PCT_RIBOSOMAL_BASES", "PCT_CODING_BASES", "PCT_UTR_BASES", "LOG_ESTIMATED_LIBRARY_SIZE", "LOG_PF_READS_ALIGNED", "MEDIAN_5PRIME_TO_3PRIME_BIAS", "PCT_PF_READS_ALIGNED", "study", "PERCENT_DUPLICATION", "MEDIAN_3PRIME_BIAS", "PCT_INTERGENIC_BASES")
 
 covars.mono.pathology <- c("msex","age_death","pmi","age_draw")
-covars.mono.cognition <- c("msex","age_draw","educ")
+covars.mono.cognition <- c("msex","age_draw","educ","age_at_visit") # modified for biomarkers
 covars.mono.pathology.blood <- c("msex","age_death","pmi","age_draw","hemoglbn_at_draw","mchc_at_draw","mcv_at_draw","platelet_at_draw","wbc_at_draw","fasting.f","hemotologic_rx_at_draw")
 covars.mono.cognition.blood <- c("msex","age_draw","educ","hemoglbn_at_draw","mchc_at_draw","mcv_at_draw","platelet_at_draw","wbc_at_draw","fasting.f","hemotologic_rx_at_draw")
 
-covars.dlpfc.pathology <- c("msex","pmi","age_death")
-covars.dlpfc.cognition <- c("educ","msex","age_death","age_at_visit_at_lastvisit")
+covars.dlpfc.pathology <- c("msex","pmi","age_death","age_at_visit")
+covars.dlpfc.cognition <- c("educ","msex","age_death","age_at_visit_at_lastvisit","age_at_visit")
 
 indepvec.pathology <- c("plaq_n_sqrt","plaq_d_sqrt","amyloid_sqrt","tangles_sqrt","nft_sqrt","ci_num2_gct","ci_num2_mct","arteriol_scler","caa_4gp","cvda_4gp2","dlbdx","hspath_any","tdp_stage4","parkdx","pathoAD","vm3123","pput3123","it3123","mf3123") 
 
-indepvec.mono.cognition <- grep("cogn|mmse30",grep("at_draw",names(ROSmaster),value=T),value=T)
-indepvec.dlpfc.cognition <- grep("cogn|mmse30",grep("lastvisit",names(ROSmaster),value=T),value=T)
+indepvec.mono.cognition <- biomarkers #grep("cogn|mmse30",grep("at_draw",names(ROSmaster),value=T),value=T)
+indepvec.dlpfc.cognition <- biomarkers #grep("cogn|mmse30",grep("lastvisit",names(ROSmaster),value=T),value=T)
                                 
 maxnum.toplot <- 100
 
@@ -63,7 +72,7 @@ for (tissue in tissue.list) {
       ### remove outlier subjects
       removesubs.dlpfc <- c("20634274","23690880","50103967","32697960","20886846","43596435","16322424","30544882","74522154","21246218","74284255","11390174","69924281","85578107","11475462","00402800","01797756","24141372")
       dge_filtered <- dge_filtered[,which(dge_filtered$samples$projid %nin% removesubs.dlpfc)]
-      saveRDS(dge_filtered,file="output/dlpfc_dge_filtered_used.rds")
+      saveRDS(dge_filtered,file="output/dlpfc_dge_filtered_used_biomarkers.rds")
       
       if(outcome.category=="pathology"){
         indepvec <- indepvec.pathology
@@ -79,7 +88,7 @@ for (tissue in tissue.list) {
         ### remove outlier subjects
         removesubs.mono <- c("00246264","35072859","91804757","21135680","69866926","50303145")
         dge_filtered <- dge_filtered[,which(dge_filtered$samples$projid %nin% removesubs.mono)]
-        saveRDS(dge_filtered,file="output/mono_dge_filtered_used.rds")
+        saveRDS(dge_filtered,file="output/mono_dge_filtered_used_biomarkers.rds")
         
         if(outcome.category=="pathology"){
           indepvec <- indepvec.pathology
@@ -192,8 +201,8 @@ for (tissue in tissue.list) {
     }
     
     print(paste("### saving summary statistics for:",outcome.category,"/",tissue))
-    saveRDS(ttlistdesign,file=paste0("output/TWAS_designmatrices_",tissue,"_",outcome.category,".rds"))
-    saveRDS(ttlist,file=paste0("output/TWAS_results_",tissue,"_",outcome.category,".rds"))
+    saveRDS(ttlistdesign,file=paste0("output/TWAS_designmatrices_",tissue,"_",outcome.category,"_biomarkers.rds"))
+    saveRDS(ttlist,file=paste0("output/TWAS_results_",tissue,"_",outcome.category,"_biomarkers.rds"))
     
     #################################################
     ######### START OF MANHATTAN PLOTTING ###########
@@ -272,7 +281,7 @@ for (tissue in tissue.list) {
     
     # manhattan
     print(paste("### saving manhattan plots for:",outcome.category,"/",tissue))
-    pdf(paste0("output/Manhattan_plot_",tissue,"_",outcome.category,".pdf"),width=14,height=9, onefile = T)
+    pdf(paste0("output/Manhattan_plot_",tissue,"_",outcome.category,"_biomarkers.pdf"),width=14,height=9, onefile = T)
     for (a in seq(1,length(plotlist))) { print(plotlist[[a]]) }
     dev.off()
     
@@ -341,7 +350,7 @@ for (tissue in tissue.list) {
     }
     
     print(paste("### saving individual significant result plots for:",outcome.category,"/",tissue))
-    pdf(paste0("output/Individual_effects_",tissue,"_",outcome.category,".pdf"),width=16,height=16, onefile = T)
+    pdf(paste0("output/Individual_effects_",tissue,"_",outcome.category,"_biomarkers.pdf"),width=16,height=16, onefile = T)
     for (a in seq(1,length(datplotlist))) { print(datplotlist[[a]]) }
     dev.off()
   }
