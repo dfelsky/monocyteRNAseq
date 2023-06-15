@@ -6,11 +6,11 @@ library(ggthemes)
 library(ggsci)
 library(ggpubr)
 library(cowplot)
+library(SuperExactTest)
 
 # reviewer comments
 # Reviewer 2, comment 1. Microglialness of correlated genes between monocyte and brain
-setwd("paper/FINAL/nature_communications/revision1/mglia_gene_sets/")
-load("Mouse_Human_GenelistDatabaseAugust2021.RData")
+load("paper/FINAL/nature_communications/revision1/mglia_gene_sets/Mouse_Human_GenelistDatabaseAugust2021.RData")
 
 hm1 <- subset(human.master3, groups %in% c("Microglia","Microglia Development"))
 hm2 <- subset(hm1, Species=="human")
@@ -20,11 +20,10 @@ mgliasets <- lapply(unique(hm2$listname),function(x) {
 })
 names(mgliasets) <- unique(hm2$listname)
 
-ct <- readRDS("../../../../../output/cross_tissue_correlation_results.rds")
-ha <- read.csv("humi_aged.csv")
+ct <- readRDS("output/cross_tissue_correlation_results.rds")
+ha <- read.csv("paper/FINAL/nature_communications/revision1/mglia_gene_sets/humi_aged.csv")
 
 ## custom enrichment
-library(SuperExactTest)
 m2g <- list(mono_posfdr=as.character(ct$gene[which(ct$cor_r>0 & ct$cor_fdr<0.05)]),
             mono_negfdr=as.character(ct$gene[which(ct$cor_r<0 & ct$cor_fdr<0.05)]),
             mono_posp=as.character(ct$gene[which(ct$cor_r>0 & ct$cor_p<0.05)]),
@@ -211,12 +210,12 @@ celltypes <- names(ctp)
 ctp$projid <- as.numeric(rownames(ctp))
 ctp <- as.data.frame(apply(ctp,2,as.numeric))
 
-# check celltype distributions
-ctp_melt <- melt(ctp,id.vars = "projid")
-ggplot(data=ctp_melt,aes(x=value))+
-  geom_histogram()+
-  facet_wrap(~variable,nrow=10,scales = "free")+
-  theme_minimal()
+# check cell type distributions
+#ctp_melt <- melt(ctp,id.vars = "projid")
+#ggplot(data=ctp_melt,aes(x=value))+
+#  geom_histogram()+
+#  facet_wrap(~variable,nrow=10,scales = "free")+
+#  theme_minimal()
 
 mono <- readRDS("output/mono_dge_filtered_used_biomarkers.rds")
 mp <- mono$samples
@@ -312,7 +311,7 @@ plotsub <- ggplot(data=allres, aes(x=-log10(p_sub)*sign(t_sub),y=cellsub,col=phe
        col="PAM Phenotype",
        x="Signed -log10(p-value)")
 
-pdf(file="paper/figures/revision_PAM_association_with_subtypes_snRNAseq_V1.pdf",h=12,w=12)
+pdf(file="paper/figures/revision_PAM_association_with_subtypes_snRNAseq_V2.pdf",h=12,w=12)
 print(plot_grid(plotfull,plotsub,nrow=1))
 dev.off()
 
@@ -410,9 +409,36 @@ allcors$cell <- factor(allcors$cell,levels=allcors$cell[order(allcors$r)])
 ggplot(data=allcors,aes(x=r,y=cell))+
   geom_bar(stat="identity")
 
-ggplot(data=mres,aes(y=t_full_monogene,x=t_mf3123))+
-  geom_point()+
-  geom_smooth(method="lm")+
-  facet_wrap(~cell_monogene,scales="free")+
-  theme_minimal()
+# ggplot(data=mres,aes(y=t_full_monogene,x=t_mf3123))+
+#   geom_point()+
+#   geom_smooth(method="lm")+
+#   facet_wrap(~cell_monogene,scales="free")+
+#   theme_minimal()
+
+# meta-analyze effects of genes on PAM vs. effects of genes on molecular DAMs vs. cross-tissue gene correlations
+# genes with concordant effects across all three analyses are high priority
+
+ct_mres <- merge(ct,mres,by.x="gene",by.y="gene_mf3123")
+
+cmsp05 <- subset(ct_mres, cor_p < 0.05 & p_full_monogene < 0.05 & P.Value_mf3123 < 0.05)
+cmsfdr05 <- subset(ct_mres, cor_fdr < 0.05 & p_full_monogene < 0.05 & adj.P.Val_mf3123 < 0.05)
+
+table(cmsfdr05$hugo)
+table(cmsfdr05$cell_monogene)
+
+pdf(file="paper/figures/revision_meta_analysis_pam_monogene_cells_cor_v1.pdf",h=8,w=8)
+ggplot(data=cmsfdr05,aes(x=hugo,y=cell_monogene))+
+  geom_tile(aes(fill=t_full_monogene))+
+  geom_text(aes(label=signif(cor_r,2)),fontface="bold",size=3)+
+  scale_fill_gradient2_tableau()+
+  labs(title="Association of PAM-associated genes with snRNAseq cell subtypes",
+       subtitle="Value within tile indicates cross-tissue (DLPFC vs. monocyte) correlation (r)",
+       fill="T statistic for gene-cell type association",
+       y="Cell subtype",
+       x="Gene")+
+  theme_minimal()+
+  theme(axis.text.x=element_text(angle = -45, hjust = 0))
+dev.off()
+
+write.csv(cmsfdr05[,c("hugo","cor_r","t_full_monogene","cell_monogene","t_mf3123")],file="paper/FINAL/nature_communications/revision1/cellproportions/meta_analysis_tablev1.csv",row.names=F)
 
