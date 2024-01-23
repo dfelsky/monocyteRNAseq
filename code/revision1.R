@@ -47,7 +47,7 @@ ssmt[grep("mono_",ssmt$Intersections),]
 ###########################################################################################
 ###########################################################################################
 #### peripheral blood biomarker DGE analysis is in submit_bloodbiomarker_TWAS_forrevision1.R
-# here are plots and proessing of the results
+# here are plots and processing of the results
 
 ### overlapping genes for amyloid phenotypes
 tb <- readRDS("output/TWAS_results_monocyte_cognition_blood_biomarkers.rds")
@@ -191,9 +191,12 @@ mono.m <- merge(mono.qc,degmonot,by="projid")
 gene.names <- grep("ENSG",names(mono.m),value=T)
 
 allcors <- apply(mono.m[,gene.names],2,function(gene){
-  cor.test(gene,mono.m$MEDIAN_3PRIME_BIAS)
+  lm(gene ~ mono.m$MEDIAN_3PRIME_BIAS + mono.m$PERCENT_DUPLICATION + mono.m$PCT_RIBOSOMAL_BASES)
 })
 
+lapply(allcors, function(x){
+  
+})
 
 ###########################################################################################
 ###########################################################################################
@@ -217,6 +220,10 @@ ctp <- as.data.frame(apply(ctp,2,as.numeric))
 #  facet_wrap(~variable,nrow=10,scales = "free")+
 #  theme_minimal()
 
+# read in snRNAseq cell type proportion covariates
+sn_covs <- read.csv("paper/FINAL/nature_communications/revision1/cellproportions/qc.passed.projid.csv")
+sn_covs$sn_batch <- sn_covs$batch
+
 mono <- readRDS("output/mono_dge_filtered_used_biomarkers.rds")
 mp <- mono$samples
 
@@ -224,9 +231,13 @@ ROSmaster <- readRDS("input/ROSmaster_TWAS_input.rds")
 
 mp_RM <- merge(ROSmaster,mp,by=c("projid","msex"))
 mp_RM_ctp <- merge(mp_RM,ctp,by=c("projid"))
+mp_RM_ctp_covs <- merge(mp_RM_ctp,sn_covs,by="projid")
+mp_RM_ctp_covs$sn_batch <- as.factor(mp_RM_ctp_covs$sn_batch)
 RM_ctp <- merge(ROSmaster,ctp,by="projid")
+RM_ctp_covs <- merge(RM_ctp,sn_covs,by="projid")
+RM_ctp_covs$sn_batch <- as.factor(RM_ctp_covs$sn_batch)
 
-covs <- c("pmi","msex","age_death")
+covs <- c("pmi","msex","age_death","sn_batch") # added sn_batch Jan 23 2024
 phenotypes <- c("mf3123","it3123","pput3123","vm3123")
 
 reslist <- list()
@@ -236,8 +247,8 @@ for (phenotype in phenotypes) {
     form <- as.formula(paste0(phenotype,"~",celltype,"+",paste0(covs,collapse = "+")))
     form_noctp <- as.formula(paste0(phenotype,"~",paste0(covs,collapse = "+")))
     
-    mod_full <- lm(data=RM_ctp, form)
-    mod_full_noctp <- lm(data=RM_ctp, form_noctp)
+    mod_full <- lm(data=RM_ctp_covs, form)
+    mod_full_noctp <- lm(data=RM_ctp_covs, form_noctp)
     summod_full <- summary(mod_full)
     summod_full_noctp <- summary(mod_full_noctp)
     n_full <- nrow(mod_full$model)
@@ -246,8 +257,8 @@ for (phenotype in phenotypes) {
     r2_adj_full <- summod_full$adj.r.squared
     r2_adj_full_noctp <- summod_full_noctp$adj.r.squared
     
-    mod_sub <- lm(data=mp_RM_ctp, form)
-    mod_sub_noctp <- lm(data=mp_RM_ctp, form_noctp)
+    mod_sub <- lm(data=mp_RM_ctp_covs, form)
+    mod_sub_noctp <- lm(data=mp_RM_ctp_covs, form_noctp)
     summod_sub <- summary(mod_sub)
     summod_sub_noctp <- summary(mod_sub_noctp)
     n_sub <- nrow(mod_sub$model)
@@ -306,12 +317,12 @@ plotsub <- ggplot(data=allres, aes(x=-log10(p_sub)*sign(t_sub),y=cellsub,col=phe
   scale_color_jco()+
   scale_y_discrete(limits = levels(allres$cellsub))+
   labs(title = "Association of PAM Phenotypes with snRNAseq Cell Subtypes (n=28-31)",
-       subtitle= "Overlapping sample with monocyte RNAseq (covariates: PMI, age, sex)",
+       subtitle= "Overlapping sample with monocyte RNAseq (covariates: PMI, age, sex, snRNAseq batch)",
        y="Cell subtype proportion estimate (snRNAseq)",
        col="PAM Phenotype",
        x="Signed -log10(p-value)")
 
-pdf(file="paper/figures/revision_PAM_association_with_subtypes_snRNAseq_V2.pdf",h=12,w=12)
+pdf(file="paper/figures/revision_PAM_association_with_subtypes_snRNAseq_V3_covbatch.pdf",h=12,w=12)
 print(plot_grid(plotfull,plotsub,nrow=1))
 dev.off()
 
@@ -340,8 +351,11 @@ mg <- mg[,c("projid",pamsig$MF)]
 mpg <- merge(mp,mg,by="projid")
 mpg2 <- merge(ROSmaster,mpg,by=c("projid","msex"))
 mpg_rm_ctp <- merge(mpg2,ctp,by="projid")
+mpg_rm_ctp$mono_batch <- mpg_rm_ctp$batch
+mpg_rm_ctp_covs <- merge(mpg_rm_ctp,sn_covs,by="projid")
+mpg_rm_ctp_covs$sn_batch <- as.factor(mpg_rm_ctp_covs$sn_batch)
 
-covs <- c("pmi","msex","age_death","batch","age_draw","PCT_RIBOSOMAL_BASES")
+covs <- c("pmi","msex","age_death","mono_batch","age_draw","PCT_RIBOSOMAL_BASES","sn_batch")
 phenotypes <- grep("ENSG",names(mpg_rm_ctp),value=T)
 
 reslist2 <- list()
@@ -351,8 +365,8 @@ for (phenotype in phenotypes) {
     form <- as.formula(paste0(phenotype,"~",celltype,"+",paste0(covs,collapse = "+")))
     form_noctp <- as.formula(paste0(phenotype,"~",paste0(covs,collapse = "+")))
     
-    mod_full <- lm(data=mpg_rm_ctp, form)
-    mod_full_noctp <- lm(data=mpg_rm_ctp, form_noctp)
+    mod_full <- lm(data=mpg_rm_ctp_covs, form)
+    mod_full_noctp <- lm(data=mpg_rm_ctp_covs, form_noctp)
     summod_full <- summary(mod_full)
     summod_full_noctp <- summary(mod_full_noctp)
     n_full <- nrow(mod_full$model)
@@ -426,10 +440,21 @@ cmsfdr05 <- subset(ct_mres, cor_fdr < 0.05 & p_full_monogene < 0.05 & adj.P.Val_
 table(cmsfdr05$hugo)
 table(cmsfdr05$cell_monogene)
 
-pdf(file="paper/figures/revision_meta_analysis_pam_monogene_cells_cor_v1.pdf",h=8,w=8)
+# order rows and columns
+newcast <- dcast(cmsfdr05,cell_monogene ~ hugo,value.var = "t_full_monogene")
+rownames(newcast) <- newcast$cell_monogene
+newcast$cell_monogene <- NULL
+
+cellindex <- order(apply(newcast,1,function(x) { mean(x,na.rm=T)} ))
+geneindex <- order(apply(newcast,2,function(x) { mean(abs(x),na.rm=T)} ))
+
+cmsfdr05$cell_monogene <- factor(cmsfdr05$cell_monogene,levels=rownames(newcast)[cellindex])
+cmsfdr05$hugo <- factor(cmsfdr05$hugo,levels=colnames(newcast)[geneindex])
+
+pdf(file="paper/figures/revision_meta_analysis_pam_monogene_cells_cor_v2.pdf",h=8,w=8)
 ggplot(data=cmsfdr05,aes(x=hugo,y=cell_monogene))+
   geom_tile(aes(fill=t_full_monogene))+
-  geom_text(aes(label=signif(cor_r,2)),fontface="bold",size=3)+
+  geom_text(aes(label=signif(cor_r,2)),size=3)+
   scale_fill_gradient2_tableau()+
   labs(title="Association of PAM-associated genes with snRNAseq cell subtypes",
        subtitle="Value within tile indicates cross-tissue (DLPFC vs. monocyte) correlation (r)",
@@ -440,5 +465,5 @@ ggplot(data=cmsfdr05,aes(x=hugo,y=cell_monogene))+
   theme(axis.text.x=element_text(angle = -45, hjust = 0))
 dev.off()
 
-write.csv(cmsfdr05[,c("hugo","cor_r","t_full_monogene","cell_monogene","t_mf3123")],file="paper/FINAL/nature_communications/revision1/cellproportions/meta_analysis_tablev1.csv",row.names=F)
+write.csv(cmsfdr05[,c("hugo","cor_r","t_full_monogene","cell_monogene","t_mf3123")],file="paper/FINAL/nature_communications/revision1/cellproportions/meta_analysis_tablev2_withsnbatch.csv",row.names=F)
 
